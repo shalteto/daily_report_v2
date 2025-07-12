@@ -105,8 +105,9 @@ def main():
     client = st.session_state["cosmos_client_traps"]
 
     # 既存座標データ取得
-    query = "SELECT c.latitude, c.longitude FROM c"
+    query = "SELECT c.latitude, c.longitude, c.name FROM c"
     existing = client.search_container_by_query(query, [])
+    print(existing)
     existing_coords = [
         (r["latitude"], r["longitude"])
         for r in existing
@@ -171,9 +172,9 @@ def main():
     traps = [
         r for r in traps if isinstance(r, dict) and "latitude" in r and "longitude" in r
     ]
-    st.session_state["traps"] = traps
+    st.session_state["traps_point"] = traps
     st.subheader("地図上に座標を表示")
-    show_map(traps)
+    show_map(st.session_state["traps_point"])
 
 
 if __name__ == "__main__" or True:

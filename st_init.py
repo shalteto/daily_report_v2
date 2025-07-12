@@ -63,6 +63,7 @@ def init():
         st.session_state.catch_method_option = {
             "くくり罠": "kukuri",
             "箱罠": "box",
+            "囲い罠": "enclosure",
             "巻き狩り": "driven",
             "忍び猟": "sneak",
             "誘引狙撃": "call",

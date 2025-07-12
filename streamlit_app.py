@@ -2,6 +2,8 @@
 import streamlit as st
 from st_init import init
 
+st.set_page_config(page_title="SAT Report", layout="wide", page_icon="🐗")
+
 
 def main():
     st.text("合同会社ＳＡＴ")
@@ -25,7 +27,21 @@ def user_select():
             st.session_state.params_user = None
             st.rerun()
         else:
-            return
+            with st.expander("DB Data", expanded=False):
+                st.write("st.session_state.users:")
+                st.session_state.users
+                "---"
+                st.write("st.session_state.traps:")
+                st.session_state.traps
+                "---"
+                st.write("st.session_state.daily_reports:")
+                st.session_state.daily_reports
+                "---"
+                st.write("st.session_state.catch_results:")
+                st.session_state.catch_results
+                "---"
+                st.write("st.session_state.orders:")
+                st.session_state.orders
 
     # プルダウン選択表示
     else:

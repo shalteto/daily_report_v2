@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from azure_.one_drive import upload_onedrive, download_onedrive_image
 from page_parts.upload_daily_report import submit_data
 from services.gps import get_gps_coordinates
-from services.image import combine_images_with_band
 import uuid
 import os
 
@@ -12,21 +11,52 @@ users_df = st.session_state.users
 user_options = list({u["user_name"] for u in users_df})
 
 
-def get_result_id(user_code):
+# --- 新しいID発行・仮登録関数 ---
+from page_parts.load_data import get_all_data
+
+
+def get_result_ids(num=1, user_name=None):
     """
-    st.session_state["result"] から user_code で始まる result_id をカウントし、
-    次の result_id を生成して返す。
-    例: user_code='SS' なら 'SS-1', 'SS-2', ... のように付番
-    実績がない場合も 'SS-1' となる。
+    DBから最新のcatch_resultsを取得し、未使用の連番IDをnum個発行・仮登録する。
+    仮登録レコードは status="reserved" で保存。
+    user_name: 発行ユーザー識別用
+    戻り値: 発行したIDリスト
     """
-    results = st.session_state.get("result", [])
-    count = sum(
-        1
-        for r in results
-        if isinstance(r.get("result_id", ""), str)
-        and r.get("result_id", "").startswith(user_code)
-    )
-    return f"{user_code}-{count + 1}"
+    # 最新データ取得
+    data = get_all_data()
+    st.session_state.catch_results = data["catch_results"]
+    used_ids = set()
+    for d in st.session_state.catch_results:
+        try:
+            used_ids.add(int(d.get("result_id", 0)))
+        except Exception:
+            pass
+    # 連番で未使用IDをnum個探す
+    next_ids = []
+    i = 1
+    while len(next_ids) < num:
+        if i not in used_ids:
+            next_ids.append(i)
+        i += 1
+    # 仮登録レコードをDBに保存
+    client = st.session_state["cosmos_client"]
+    fy = st.session_state.get("fy", "2025年度")
+    reserved = []
+    for rid in next_ids:
+        rec = {
+            "id": str(uuid.uuid4()),
+            "category": "result",
+            "fy": fy,
+            "result_id": str(rid),
+            "status": "reserved",
+            "reserved_by": user_name,
+            "reserved_at": str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        }
+        client.upsert_to_container(rec)
+        reserved.append(rec)
+    # session_stateも更新
+    st.session_state.catch_results += reserved
+    return [str(rid) for rid in next_ids]
 
 
 def upsert_catch_result():
@@ -35,16 +65,103 @@ def upsert_catch_result():
         list(st.session_state.catch_method_option.keys()),
         selection_mode="single",
     )
-    if catch_method in ["くくり罠", "箱罠"]:
+    if catch_method in ["くくり罠", "箱罠", "囲い罠"]:
         trap_map(mode="稼働中", multi_select="single-object")
     if st.session_state.selected_objects:
         for p in st.session_state.selected_objects["map"]:
             st.write(f"選択中の罠：{p['trap_name']}")
+
+    # --- 予約済みIDの取得 ---
+    user_name = st.session_state.user["user_name"] if st.session_state.user else None
+    data_all = get_all_data()
+    st.session_state.catch_results = data_all["catch_results"]
+    reserved_ids = [
+        d["result_id"]
+        for d in st.session_state.catch_results
+        if d.get("status") == "reserved" and d.get("reserved_by") == user_name
+    ]
+    reserved_ids = sorted(reserved_ids, key=lambda x: int(x))
+
+    if reserved_ids:
+        result_id = reserved_ids[0]
+    else:
+        result_id = ""
+
+    if reserved_ids:
+        id_html = " ".join(
+            [
+                f"<span style='font-size: 32px; font-weight: bold; color: #d62728; background-color: #f9f9f9; padding: 8px 20px; border: 2px solid #d62728; border-radius: 8px; margin-right: 8px;'>{rid}</span>"
+                for rid in reserved_ids
+            ]
+        )
+    else:
+        id_html = (
+            "<span style='font-size: 16px; color: #999;'>予約済みIDはありません</span>"
+        )
+
+    st.markdown(
+        f"""
+        <div style='
+            margin-top: 20px;
+        '>
+            <div style='
+                font-size: 16px;
+                color: #666;
+                margin-bottom: 5px;
+            '>発行済 捕獲番号:</div>
+            <div>{id_html}</div>
+        </div>
+        <br>""",
+        unsafe_allow_html=True,
+    )
+
+    # --- ID追加発行ボタン ---
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("捕獲番号追加")
+        num_ids = 1
+        if st.button("ID追加発行", key="add_result_id"):
+            new_ids = get_result_ids(
+                num=num_ids, user_name=st.session_state.user["user_name"]
+            )
+            data_all = get_all_data()
+            st.session_state.catch_results = data_all["catch_results"]
+            reserved_ids = [
+                d["result_id"]
+                for d in st.session_state.catch_results
+                if d.get("status") == "reserved" and d.get("reserved_by") == user_name
+            ]
+            reserved_ids = sorted(reserved_ids, key=lambda x: int(x))
+            st.rerun()
+    with col2:
+        # 予約済み発行IDのうち、最大のIDを1件だけ削除
+        if reserved_ids:
+            if st.button("予約済みIDを削除", key="delete_reserved_id"):
+                client = st.session_state["cosmos_client"]
+                max_id = max(reserved_ids, key=lambda x: int(x))
+                # 仮登録レコードを削除
+                rec = next(
+                    (
+                        d
+                        for d in st.session_state.catch_results
+                        if d.get("result_id") == max_id
+                    ),
+                    None,
+                )
+                if rec:
+                    client.delete_item_from_container(rec["id"], "result")
+                    # session_stateも更新
+                    st.session_state.catch_results = [
+                        d
+                        for d in st.session_state.catch_results
+                        if d.get("result_id") != max_id
+                    ]
+                    st.rerun()
+        else:
+            st.write("予約済みIDはありません")
+
     with st.form(key="catch_result"):
         st.caption("入力は１頭ずつ行って下さい")
-        user_code = st.session_state["user"]["user_code"]
-        result_id = get_result_id(user_code)
-        st.markdown(f"捕獲識別番号: **{result_id}**")
         users = st.segmented_control(
             "従事者選択",
             user_options,
@@ -97,6 +214,8 @@ def upsert_catch_result():
     if submit_button:
         # 入力チェック
         missing_fields = []
+        if not result_id:
+            missing_fields.append("捕獲識別番号を発行・選択してください。")
         if not users:
             missing_fields.append("従事者を選択してください。")
         if not catch_method:
@@ -120,50 +239,13 @@ def upsert_catch_result():
         now = datetime.now().strftime("%Y%m%d%H%M%S")
         image_names = {}
 
-        # combine_images_with_band用データ
-        combine_data = {
-            "捕獲日": date,
-            "委託業務名": "渥美地区野生イノシシ根絶事業",
-            "実施地域": "渥美地区",
-            "捕獲者": st.session_state["user"]["user_name"],
-        }
-
-        # combine_images_with_bandで処理する画像キー
-        combine_keys = ["image1", "image2", "image3", "image4"]
-        with st.spinner("許可証画像をダウンロードしています...", show_time=True):
-            permit_image_data, _ = download_onedrive_image(
-                f"user_image/{st.session_state['user']['permit_img_name']}"
-            )
-            # permit_img で取得した画像を保存
-            permit_image_path = "permit_image_data.png"
-            with open(permit_image_path, "wb") as f:
-                f.write(permit_image_data)
-
         for idx, (key, _) in enumerate(image_fields, 1):
             file = images[key]
             file.seek(0)
-            if key in combine_keys:
-                with st.spinner(
-                    f"{key} の画像を処理・アップロード中...", show_time=True
-                ):
-                    # combine_images_with_bandで画像を処理
-                    processed_img_path = combine_images_with_band(
-                        file,
-                        combine_data,
-                        permit_img_path=permit_image_path,
-                        font_path="NotoSansJP-Regular.ttf",
-                    )
-                    name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.png"
-                    with open(processed_img_path, "rb") as processed_file:
-                        processed_img = processed_file.read()
-                    print(f"アップロード開始{key}：{name}")
-                    upload_onedrive(f"catch_result/{name}", processed_img)
-            else:
-                with st.spinner(f"{key} の画像をアップロード中...", show_time=True):
-                    ext = file.name.split(".")[-1]
-                    name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.{ext}"
-                    print(f"アップロード開始{key}：{name}")
-                    upload_onedrive(f"catch_result/{name}", file)
+            ext = file.name.split(".")[-1]
+            name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.{ext}"
+            print(f"アップロード開始{key}：{name}")
+            upload_onedrive(f"catch_result/{name}", file)
             image_names[key] = name
 
         location_image = images["image2"]
@@ -174,11 +256,32 @@ def upsert_catch_result():
         location_image.seek(0)
         lat, lon = gps_coordinates
 
+        # --- 仮登録レコードを正式登録に上書き ---
+        client = st.session_state["cosmos_client"]
+        # 最新データ取得
+        data_all = get_all_data()
+        st.session_state.catch_results = data_all["catch_results"]
+        # 自分がreservedした最小IDのレコードを探す
+        user_name = (
+            st.session_state.user["user_name"] if st.session_state.user else None
+        )
+        reserved = [
+            d
+            for d in st.session_state.catch_results
+            if d.get("result_id") == result_id
+            and d.get("status") == "reserved"
+            and d.get("reserved_by") == user_name
+        ]
+        if not reserved:
+            st.error(
+                "指定したIDの仮登録レコードが見つかりません。他ユーザーが既に登録した可能性があります。再取得してください。"
+            )
+            return
+        reserved_rec = reserved[0]
+        # 上書きデータ作成
         data = {
-            "id": str(uuid.uuid4()),
-            "category": "result",
-            "fy": st.session_state.fy,
-            "result_id": result_id,
+            **reserved_rec,
+            "status": "registered",
             "users": users,
             "catch_date": date.strftime("%Y-%m-%d"),
             "catch_method": catch_method,
@@ -191,11 +294,20 @@ def upsert_catch_result():
             "disposal": disposal,
             "comment": comment,
         }
-        # 画像名をdataに追加
         data.update(image_names)
         with st.spinner("データを送信しています...", show_time=True):
-            submit_data(data)
-            st.session_state["catch_results"].append(data)
+            client.upsert_to_container(data)
+            # session_stateも更新
+            for i, d in enumerate(st.session_state.catch_results):
+                if d["id"] == reserved_rec["id"]:
+                    st.session_state.catch_results[i] = data
+                    break
+            st.success("正式登録が完了しました")
+        # 使用済みIDは選択肢から除外
+        if "issued_result_ids" in st.session_state:
+            st.session_state["issued_result_ids"] = [
+                i for i in st.session_state["issued_result_ids"] if i != result_id
+            ]
 
 
 def edit_catch_result():
@@ -240,8 +352,9 @@ def edit_catch_result():
     st.caption(f"該当件数: {len(filtered)}")
     for idx, d in enumerate(filtered):
         with st.expander(
-            f"{d.get('catch_date', '')} | {', '.join(d.get('users', []))} | {d.get('catch_method', '')}"
+            f"{d.get('result_id', '')} | {d.get('catch_date', '')} | {', '.join(d.get('users', []))} | {d.get('catch_method', '')}"
         ):
+            st.write(f"捕獲識別番号: {d.get('result_id', '')}")
             st.write(f"捕獲日: {d.get('catch_date', '')}")
             st.write(f"従事者: {', '.join(d.get('users', []))}")
             st.write(f"捕獲方法: {d.get('catch_method', '')}")
@@ -356,10 +469,6 @@ def edit_catch_result():
                                 "実施地域": "渥美地区",
                                 "捕獲者": ", ".join(edit_users),
                             }
-                            # permit_img取得
-                            permit_img = download_onedrive_image(
-                                f"user_image/{st.session_state['user']['permit_img_name']}"
-                            )
                             for img_idx, (img_key, img_label) in enumerate(
                                 image_fields
                             ):
@@ -370,22 +479,9 @@ def edit_catch_result():
                                     ext = replace_file.name.split(".")[-1]
                                     new_img_name = f"{now}_{st.session_state.catch_method_option[edit_catch_method]}_{img_key}.{ext}"
                                     replace_file.seek(0)
-                                    if img_key in combine_keys:
-                                        # combine_images_with_bandで画像を処理
-                                        processed_img = combine_images_with_band(
-                                            replace_file,
-                                            combine_data,
-                                            permit_img_path=permit_img,
-                                            font_path="NotoSansJP-Regular.ttf",
-                                        )
-                                        upload_onedrive(
-                                            f"catch_result/{new_img_name}",
-                                            processed_img,
-                                        )
-                                    else:
-                                        upload_onedrive(
-                                            f"catch_result/{new_img_name}", replace_file
-                                        )
+                                    upload_onedrive(
+                                        f"catch_result/{new_img_name}", replace_file
+                                    )
                                     d[img_key] = new_img_name
                                     st.success(
                                         f"{img_label} を {new_img_name} に差し替えました。"

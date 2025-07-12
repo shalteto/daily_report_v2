@@ -2,7 +2,6 @@ import streamlit as st
 from page_parts.trap_map import trap_map
 from datetime import datetime, timedelta
 from azure_.one_drive import upload_onedrive, download_onedrive_image
-from services.image import combine_images_with_band
 import uuid
 
 
@@ -10,18 +9,18 @@ users_df = st.session_state.users
 user_options = list({u["user_name"] for u in users_df})
 
 
-def file_upload_daily(image_file_path, task_type):
+def file_upload_daily(uploaded_file, task_type):
     images = []
     now = datetime.now().strftime("%Y%m%d%H%M%S")
-    extension = image_file_path.split(".")[-1]
+    extension = uploaded_file.name.split(".")[-1]
     blob_name = f"{now}_{st.session_state.task_type_option[task_type]}_1.{extension}"
     print(f"blob_name: {blob_name}")
     images.append({"name": blob_name})
-    with open(image_file_path, "rb") as f:
-        upload_onedrive(
-            f"daily_report/{blob_name}",
-            f,
-        )
+    uploaded_file.seek(0)
+    upload_onedrive(
+        f"daily_report/{blob_name}",
+        uploaded_file,
+    )
     return images
 
 
@@ -71,19 +70,7 @@ def upsert_daily_report():
             print("処理開始")
             if uploaded_files and users and task_type:
                 task_date = date.strftime("%Y-%m-%d")
-                image_frame_data = {
-                    "実施日": task_date,
-                    "委託業務名": "渥美地区野生イノシシ根絶事業",
-                    "実施地域": "渥美地区",
-                    "従事人数": len(users),
-                }
-                add_data_image_path = combine_images_with_band(
-                    uploaded_files,
-                    image_frame_data,
-                    permit_img_path=None,
-                    font_path="NotoSansJP-Regular.ttf",
-                )
-                images = file_upload_daily(add_data_image_path, task_type)
+                images = file_upload_daily(uploaded_files, task_type)
 
                 # 画像のアップロード
                 data = {

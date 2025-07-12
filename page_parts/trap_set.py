@@ -78,7 +78,7 @@ def trap_set():
         )
         trap_name = st.text_input("罠の通称（地図に表示する任意の名称）")
         trap_type = st.segmented_control(
-            "罠種類", ["くくり", "箱"], default="くくり", selection_mode="single"
+            "罠種類", ["くくり", "箱", "囲い"], default="くくり", selection_mode="single"
         )
         number = st.segmented_control(
             "設置数(1スポット中の個数)",
@@ -221,7 +221,7 @@ def trap_edit():
         )
         trap_type = st.segmented_control(
             "罠種類",
-            ["くくり", "箱"],
+            ["くくり", "箱", "囲い"],
             default=selected_trap["trap_type"],
             selection_mode="single",
         )

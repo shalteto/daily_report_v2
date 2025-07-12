@@ -8,14 +8,24 @@ from result_sample import sample_data
 def show_graph():
     st.subheader("捕獲統計")
     st.caption("捕獲数の推移をグラフで表示します。")
+    # st.session_state["catch_results"]が存在しない場合のエラーハンドリング
+    if "catch_results" not in st.session_state:
+        st.warning("捕獲データがありません。")
+        return
+    df = pd.DataFrame(st.session_state["catch_results"])
+    if df.empty:
+        st.warning("捕獲データがありません。")
+        return
     st.markdown(
         """
         - グラフは、捕獲数の推移を示しています。
         - グラフの上にカーソルを合わせると、日付と捕獲数が表示されます。
         """
     )
-    # df = pd.DataFrame(sample_data)
-    df = pd.DataFrame(st.session_state["catch_results"])
+    df = df[df["status"] == "registered"]
+    if df.empty:
+        st.warning("捕獲データがありません。")
+        return
 
     # 日付ごとに捕獲数を集計
     count_by_date = df.groupby("catch_date").size().reset_index(name="捕獲数")
@@ -23,7 +33,8 @@ def show_graph():
     count_by_date = count_by_date.sort_values("catch_date")
     # グラフ表示
     st.bar_chart(
-        data=count_by_date.set_index("catch_date")["捕獲数"], use_container_width=True
+        data=count_by_date.set_index("catch_date")["捕獲数"],
+        use_container_width=True,
     )
 
 
@@ -82,75 +93,80 @@ def show_map(width=400, height=400):
     if df.empty:
         st.warning("捕獲データがありません。")
         return
-
-    # クラスタリング
-    clusters = cluster_points(df, threshold=30)
-    cluster_data = []
-    for cluster in clusters:
-        members = df.loc[cluster]
-        count = len(members)
-        # 緯度経度の平均値を代表点とする
-        lat = members["latitude"].mean()
-        lon = members["longitude"].mean()
-        # 半径: 1個体=50, 2個体=80, 3個体=110, ...（例）
-        radius = 50 + (count - 1) * 30
-        cluster_data.append(
-            {
-                "latitude": lat,
-                "longitude": lon,
-                "count": count,
-                "radius": radius,
-                "tooltip": f"個体数: {count}\n捕獲日: {', '.join(members['catch_date'].unique())}",
-            }
-        )
-    cluster_df = pd.DataFrame(cluster_data)
-
-    # 色は単色（青）
-    cluster_df["color"] = [[255, 0, 0, 180]] * len(cluster_df)
-
-    layer = pdk.Layer(
-        "ScatterplotLayer",
-        data=cluster_df,
-        get_position="[longitude, latitude]",
-        get_radius="radius",
-        get_color="color",
-        pickable=True,
-        auto_highlight=True,
-        id="result_map",
-    )
-
-    # 地図の中心・ズーム自動計算
-    min_lat, max_lat = cluster_df["latitude"].min(), cluster_df["latitude"].max()
-    min_lon, max_lon = cluster_df["longitude"].min(), cluster_df["longitude"].max()
-    center_lat = (min_lat + max_lat) / 2
-    center_lon = (min_lon + max_lon) / 2
-    lat_diff = max_lat - min_lat
-    lon_diff = max_lon - min_lon
-    max_diff = max(lat_diff, lon_diff)
-    if max_diff < 0.005:
-        zoom = 15
-    elif max_diff < 0.01:
-        zoom = 14
-    elif max_diff < 0.02:
-        zoom = 13
-    elif max_diff < 0.05:
-        zoom = 12
-    elif max_diff < 0.1:
-        zoom = 11
     else:
-        zoom = 10
+        df = df[df["status"] == "registered"]
+        if df.empty:
+            st.warning("捕獲データがありません。")
+            return
 
-    view_state = pdk.ViewState(
-        latitude=center_lat,
-        longitude=center_lon,
-        zoom=zoom,
-    )
+        # クラスタリング
+        clusters = cluster_points(df, threshold=30)
+        cluster_data = []
+        for cluster in clusters:
+            members = df.loc[cluster]
+            count = len(members)
+            # 緯度経度の平均値を代表点とする
+            lat = members["latitude"].mean()
+            lon = members["longitude"].mean()
+            # 半径: 1個体=50, 2個体=80, 3個体=110, ...（例）
+            radius = 50 + (count - 1) * 30
+            cluster_data.append(
+                {
+                    "latitude": lat,
+                    "longitude": lon,
+                    "count": count,
+                    "radius": radius,
+                    "tooltip": f"個体数: {count}\n捕獲日: {', '.join(members['catch_date'].unique())}",
+                }
+            )
+        cluster_df = pd.DataFrame(cluster_data)
 
-    chart = pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state,
-        map_style=map_style_url,
-        tooltip={"text": "{tooltip}"},
-    )
-    st.caption("●円の大きさは捕獲個体数を表します")
-    st.pydeck_chart(chart, height=height)
+        # 色は単色（青）
+        cluster_df["color"] = [[255, 0, 0, 180]] * len(cluster_df)
+
+        layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=cluster_df,
+            get_position="[longitude, latitude]",
+            get_radius="radius",
+            get_color="color",
+            pickable=True,
+            auto_highlight=True,
+            id="result_map",
+        )
+
+        # 地図の中心・ズーム自動計算
+        min_lat, max_lat = cluster_df["latitude"].min(), cluster_df["latitude"].max()
+        min_lon, max_lon = cluster_df["longitude"].min(), cluster_df["longitude"].max()
+        center_lat = (min_lat + max_lat) / 2
+        center_lon = (min_lon + max_lon) / 2
+        lat_diff = max_lat - min_lat
+        lon_diff = max_lon - min_lon
+        max_diff = max(lat_diff, lon_diff)
+        if max_diff < 0.005:
+            zoom = 15
+        elif max_diff < 0.01:
+            zoom = 14
+        elif max_diff < 0.02:
+            zoom = 13
+        elif max_diff < 0.05:
+            zoom = 12
+        elif max_diff < 0.1:
+            zoom = 11
+        else:
+            zoom = 10
+
+        view_state = pdk.ViewState(
+            latitude=center_lat,
+            longitude=center_lon,
+            zoom=zoom,
+        )
+
+        chart = pdk.Deck(
+            layers=[layer],
+            initial_view_state=view_state,
+            map_style=map_style_url,
+            tooltip={"text": "{tooltip}"},
+        )
+        st.caption("●円の大きさは捕獲個体数を表します")
+        st.pydeck_chart(chart, height=height)

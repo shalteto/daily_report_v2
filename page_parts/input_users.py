@@ -15,6 +15,7 @@ def user_main():
         st.segmented_control(
             "編集・削除するユーザーを選択",
             options=user_options,
+            default=user_options[0] if user_options else None,
             key="user_select",
         )
         if users

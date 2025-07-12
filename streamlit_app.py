@@ -14,7 +14,7 @@ def main():
 
 def user_select():
     users_df = st.session_state.users
-    user_options = list({u["user_name"] for u in users_df})
+    user_options = [f"{u['user_name']}" for u in users_df] if users_df else []
 
     # 既にユーザーが選択されている場合
     if "user" in st.session_state and st.session_state.user:

@@ -6,7 +6,7 @@ from azure_.one_drive import upload_onedrive
 from services.map_mesh import get_aichi_mesh
 from page_parts.trap_map import trap_map
 from services.gps import get_gps_coordinates
-
+import time
 
 """
 |フィールド|データソース|
@@ -48,11 +48,12 @@ def file_upload_trap(uploaded_files, trap_id):
 def get_trap_id():
     """
     st.session_state["trap"] をカウントし、次の trap_id を生成して返す。
-    ID例: T1, T2, T3, ...
     """
-    traps = st.session_state.get("trap", [])
-    count = sum(1 for r in traps if isinstance(r.get("trap_id", ""), str))
-    return f"T{count + 1}"
+    traps = st.session_state.get("traps", [])
+    print(f"現在の罠数: {len(traps)}")
+    count = len(traps)
+    # return f"T{count + 1}"
+    return count + 1
 
 
 def submit_data(data):
@@ -62,7 +63,6 @@ def submit_data(data):
     except Exception as e:
         st.error(f"CosmosDB登録エラー: {e}")
         return
-    st.success("登録完了")
 
 
 def trap_set():
@@ -76,9 +76,14 @@ def trap_set():
             accept_multiple_files=True,
             type=["jpg", "png"],
         )
-        trap_name = st.text_input("罠の通称（地図に表示する任意の名称）")
+        trap_name = st.text_input(
+            "罠の通称（地図に表示する任意の名称）", key="trap_name"
+        )
         trap_type = st.segmented_control(
-            "罠種類", ["くくり", "箱", "囲い"], default="くくり", selection_mode="single"
+            "罠種類",
+            ["くくり", "箱", "囲い"],
+            default="くくり",
+            selection_mode="single",
         )
         number = st.segmented_control(
             "設置数(1スポット中の個数)",
@@ -127,11 +132,11 @@ def trap_set():
                 try:
                     with st.spinner("CosmosDBへ登録中...", show_time=True):
                         submit_data(data=data)
+                        st.session_state["traps"].append(data)
+                    st.success("登録完了")
                 except Exception as e:
                     st.error(f"CosmosDB登録エラー: {e}")
                     return
-                finally:
-                    st.session_state["traps"].append(data)
 
             else:
                 if not trap_images:

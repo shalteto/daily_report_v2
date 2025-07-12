@@ -3,39 +3,138 @@ import pandas as pd
 import pydeck as pdk
 import numpy as np
 from result_sample import sample_data
+import altair as alt
 
 
 def show_graph():
     st.subheader("捕獲統計")
-    st.caption("捕獲数の推移をグラフで表示します。")
-    # st.session_state["catch_results"]が存在しない場合のエラーハンドリング
+
     if "catch_results" not in st.session_state:
         st.warning("捕獲データがありません。")
         return
+
     df = pd.DataFrame(st.session_state["catch_results"])
     if df.empty:
         st.warning("捕獲データがありません。")
         return
-    st.markdown(
-        """
-        - グラフは、捕獲数の推移を示しています。
-        - グラフの上にカーソルを合わせると、日付と捕獲数が表示されます。
-        """
-    )
+
     df = df[df["status"] == "registered"]
     if df.empty:
-        st.warning("捕獲データがありません。")
+        st.warning("登録済みの捕獲データがありません。")
         return
 
-    # 日付ごとに捕獲数を集計
-    count_by_date = df.groupby("catch_date").size().reset_index(name="捕獲数")
-    # 日付でソート
-    count_by_date = count_by_date.sort_values("catch_date")
-    # グラフ表示
-    st.bar_chart(
-        data=count_by_date.set_index("catch_date")["捕獲数"],
-        use_container_width=True,
+    total_catch = len(df)
+    st.markdown(f"### 総捕獲数: {total_catch}")
+    st.markdown("---")
+
+    st.write("捕獲数の推移をグラフで表示します。")
+    # グラフ表示の選択
+    graph_type = st.segmented_control(
+        "表示するグラフの種類を選択してください:",
+        ["日付別捕獲数", "性別・成獣/幼獣別捕獲数"],
+        default="日付別捕獲数",
+        selection_mode="single",
     )
+
+    if graph_type == "日付別捕獲数":
+        # 日付ごとに捕獲数を集計
+        count_by_date = df.groupby("catch_date").size().reset_index(name="捕獲数")
+        # 日付でソート
+        count_by_date["catch_date"] = pd.to_datetime(
+            count_by_date["catch_date"]
+        )  # 日付型に変換
+        count_by_date = count_by_date.sort_values("catch_date")
+
+        st.markdown("#### 日付別捕獲数推移")
+        # Altairでグラフ表示（インタラクティブなツールチップ付き）
+        chart = (
+            alt.Chart(count_by_date)
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    "catch_date:T", title="捕獲日", axis=alt.Axis(format="%m/%d")
+                ),  # 日付形式をYYYY/MM/DDに
+                y=alt.Y("捕獲数:Q", title="捕獲数"),
+                tooltip=[
+                    alt.Tooltip(
+                        "catch_date:T", title="日付", format="%m/%d"
+                    ),  # ツールチップの日付形式もYYYY/MM/DDに
+                    alt.Tooltip("捕獲数:Q", title="捕獲数"),
+                ],
+            )
+            .properties(title="捕獲数の推移（日付別）")
+            .interactive()
+        )  # ズームとパンを可能にする
+
+        st.altair_chart(chart, use_container_width=True)
+
+    elif graph_type == "性別・成獣/幼獣別捕獲数":
+        # 'sex'と'adult'の組み合わせで捕獲数を集計
+        count_by_sex_adult = (
+            df.groupby(["sex", "adult"]).size().reset_index(name="捕獲数")
+        )
+
+        # グラフ表示のためにカテゴリカルな組み合わせを作成
+        count_by_sex_adult["性別・成獣/幼獣"] = (
+            count_by_sex_adult["sex"] + " - " + count_by_sex_adult["adult"]
+        )
+
+        st.markdown("#### 性別・成獣/幼獣別捕獲数")
+        # Altairでグラフ表示
+        chart = (
+            alt.Chart(count_by_sex_adult)
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    "性別・成獣/幼獣:N",
+                    title="性別・成獣/幼獣の組み合わせ",
+                    axis=alt.Axis(labelAngle=-45),
+                ),
+                y=alt.Y("捕獲数:Q", title="捕獲数"),
+                tooltip=["性別・成獣/幼獣", "捕獲数"],
+            )
+            .properties(title="捕獲数の内訳（性別・成獣/幼獣別）")
+        )
+
+        st.altair_chart(chart, use_container_width=True)
+
+
+# def show_graph():
+#     st.subheader("捕獲統計")
+#     st.caption("捕獲数の推移をグラフで表示します。")
+#     # st.session_state["catch_results"]が存在しない場合のエラーハンドリング
+#     if "catch_results" not in st.session_state:
+#         st.warning("捕獲データがありません。")
+#         return
+#     df = pd.DataFrame(st.session_state["catch_results"])
+#     if df.empty:
+#         st.warning("捕獲データがありません。")
+#         return
+#     st.markdown(
+#         """
+#         - グラフは、捕獲数の推移を示しています。
+#         - グラフの上にカーソルを合わせると、日付と捕獲数が表示されます。
+#         """
+#     )
+#     df = df[df["status"] == "registered"]
+#     if df.empty:
+#         st.warning("捕獲データがありません。")
+#         return
+
+#     # 日付ごとに捕獲数を集計
+#     count_by_date = df.groupby("catch_date").size().reset_index(name="捕獲数")
+#     # 捕獲数合計
+#     total_catch = count_by_date["捕獲数"].sum()
+#     st.markdown(f"**総捕獲数:** {total_catch}")
+#     st.markdown("---")
+#     # 日付でソート
+#     count_by_date = count_by_date.sort_values("catch_date")
+
+#     # グラフ表示
+#     st.bar_chart(
+#         data=count_by_date.set_index("catch_date")["捕獲数"],
+#         use_container_width=True,
+#     )
 
 
 map_style_options = {

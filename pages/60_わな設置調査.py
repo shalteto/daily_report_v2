@@ -5,6 +5,7 @@ from PIL import Image
 import piexif
 import io
 import math
+import uuid
 from azure_.cosmosdb import CosmosDBClient
 
 
@@ -90,7 +91,7 @@ def show_map(trap_points):
         layers=[layer],
         initial_view_state=view_state,
         map_style=map_style_url,
-        tooltip={"text": "{latitude}, {longitude}"},
+        tooltip={"text": "{name}"},
     )
     st.pydeck_chart(chart, height=400)
 
@@ -99,9 +100,9 @@ def show_map(trap_points):
 def main():
     st.subheader("わな設置調査 - 座標登録＆地図表示")
     # CosmosDBクライアント
-    if "cosmos_client" not in st.session_state:
-        st.session_state["cosmos_client"] = CosmosDBClient(container_name="traps")
-    client = st.session_state["cosmos_client"]
+    if "cosmos_client_traps" not in st.session_state:
+        st.session_state["cosmos_client_traps"] = CosmosDBClient(container_name="traps")
+    client = st.session_state["cosmos_client_traps"]
 
     # 既存座標データ取得
     query = "SELECT c.latitude, c.longitude FROM c"
@@ -121,23 +122,41 @@ def main():
     if uploaded_files and st.button("座標登録"):
         # 画像→座標抽出
         coords = []
+        file_names = []
         for f in uploaded_files:
             f.seek(0)
             c = get_gps_coordinates(f.read())
             if c:
                 coords.append(c)
+                file_names.append(f.name)
         # 画像内15m以内の重複除去
         filtered = []
         for c in coords:
-            if all(haversine(c[0], c[1], fc[0], fc[1]) > 15 for fc in filtered):
+            if all(haversine(c[0], c[1], fc[0], fc[1]) > 1 for fc in filtered):
                 filtered.append(c)
         # 既存座標と15m以内のものを除外
         new_points = []
         for c in filtered:
-            if all(haversine(c[0], c[1], ec[0], ec[1]) > 15 for ec in existing_coords):
+            if all(haversine(c[0], c[1], ec[0], ec[1]) > 1 for ec in existing_coords):
                 new_points.append(c)
-        # CosmosDBへ登録
-        to_insert = [{"latitude": lat, "longitude": lon} for lat, lon in new_points]
+        # CosmosDBへ登録（id必須）
+        # new_pointsとcoords/file_namesの順序を合わせるため、coords→filtered→new_pointsのindexを追跡
+        to_insert = []
+        for c in new_points:
+            # filteredのindexを取得（coords, file_namesと同じ順序）
+            try:
+                idx = filtered.index(c)
+                fname = file_names[idx]
+            except Exception:
+                fname = ""
+            to_insert.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": fname,
+                    "latitude": c[0],
+                    "longitude": c[1],
+                }
+            )
         if to_insert:
             client.upsert_to_container(to_insert)
             st.success(f"{len(to_insert)}件の座標を登録しました")
@@ -146,7 +165,7 @@ def main():
 
     # 最新データ取得・地図表示
     traps = client.search_container_by_query(
-        "SELECT c.latitude, c.longitude FROM c", []
+        "SELECT c.latitude, c.longitude, c.name  FROM c", []
     )
     # Noneや不正なデータを除外
     traps = [

@@ -5,7 +5,7 @@ from azure_.one_drive import upload_onedrive, download_onedrive_image
 from page_parts.upload_daily_report import submit_data
 from services.gps import get_gps_coordinates
 import uuid
-import os
+import time
 
 users_df = st.session_state.users
 user_options = list({u["user_name"] for u in users_df})
@@ -236,66 +236,67 @@ def upsert_catch_result():
                 st.error(msg)
             return
 
-        now = datetime.now().strftime("%Y%m%d%H%M%S")
-        image_names = {}
-
-        for idx, (key, _) in enumerate(image_fields, 1):
-            file = images[key]
-            file.seek(0)
-            ext = file.name.split(".")[-1]
-            name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.{ext}"
-            print(f"アップロード開始{key}：{name}")
-            upload_onedrive(f"catch_result/{name}", file)
-            image_names[key] = name
-
-        location_image = images["image2"]
-        location_image.seek(0)
-        gps_coordinates = get_gps_coordinates(location_image.read())
-        if gps_coordinates:
-            gps_data = True
-        location_image.seek(0)
-        lat, lon = gps_coordinates
-
-        # --- 仮登録レコードを正式登録に上書き ---
-        client = st.session_state["cosmos_client"]
-        # 最新データ取得
-        data_all = get_all_data()
-        st.session_state.catch_results = data_all["catch_results"]
-        # 自分がreservedした最小IDのレコードを探す
-        user_name = (
-            st.session_state.user["user_name"] if st.session_state.user else None
-        )
-        reserved = [
-            d
-            for d in st.session_state.catch_results
-            if d.get("result_id") == result_id
-            and d.get("status") == "reserved"
-            and d.get("reserved_by") == user_name
-        ]
-        if not reserved:
-            st.error(
-                "指定したIDの仮登録レコードが見つかりません。他ユーザーが既に登録した可能性があります。再取得してください。"
-            )
-            return
-        reserved_rec = reserved[0]
-        # 上書きデータ作成
-        data = {
-            **reserved_rec,
-            "status": "registered",
-            "users": users,
-            "catch_date": date.strftime("%Y-%m-%d"),
-            "catch_method": catch_method,
-            "trap": trap,
-            "latitude": lat,
-            "longitude": lon,
-            "sex": sex,
-            "adult": adult,
-            "size": size,
-            "disposal": disposal,
-            "comment": comment,
-        }
-        data.update(image_names)
         with st.spinner("データを送信しています...", show_time=True):
+            now = datetime.now().strftime("%Y%m%d%H%M%S")
+            image_names = {}
+
+            for idx, (key, _) in enumerate(image_fields, 1):
+                file = images[key]
+                file.seek(0)
+                ext = file.name.split(".")[-1]
+                name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.{ext}"
+                print(f"アップロード開始{key}：{name}")
+                upload_onedrive(f"catch_result/{name}", file)
+                image_names[key] = name
+
+            location_image = images["image2"]
+            location_image.seek(0)
+            gps_coordinates = get_gps_coordinates(location_image.read())
+            if gps_coordinates:
+                gps_data = True
+            location_image.seek(0)
+            lat, lon = gps_coordinates
+
+            # --- 仮登録レコードを正式登録に上書き ---
+            client = st.session_state["cosmos_client"]
+            # 最新データ取得
+            data_all = get_all_data()
+            st.session_state.catch_results = data_all["catch_results"]
+            # 自分がreservedした最小IDのレコードを探す
+            user_name = (
+                st.session_state.user["user_name"] if st.session_state.user else None
+            )
+            reserved = [
+                d
+                for d in st.session_state.catch_results
+                if d.get("result_id") == result_id
+                and d.get("status") == "reserved"
+                and d.get("reserved_by") == user_name
+            ]
+            if not reserved:
+                st.error(
+                    "指定したIDの仮登録レコードが見つかりません。他ユーザーが既に登録した可能性があります。再取得してください。"
+                )
+                return
+            reserved_rec = reserved[0]
+            # 上書きデータ作成
+            data = {
+                **reserved_rec,
+                "status": "registered",
+                "users": users,
+                "catch_date": date.strftime("%Y-%m-%d"),
+                "catch_method": catch_method,
+                "trap": trap,
+                "latitude": lat,
+                "longitude": lon,
+                "sex": sex,
+                "adult": adult,
+                "size": size,
+                "disposal": disposal,
+                "comment": comment,
+            }
+            data.update(image_names)
+
             client.upsert_to_container(data)
             # session_stateも更新
             for i, d in enumerate(st.session_state.catch_results):
@@ -303,6 +304,7 @@ def upsert_catch_result():
                     st.session_state.catch_results[i] = data
                     break
             st.success("正式登録が完了しました")
+
         # 使用済みIDは選択肢から除外
         if "issued_result_ids" in st.session_state:
             st.session_state["issued_result_ids"] = [

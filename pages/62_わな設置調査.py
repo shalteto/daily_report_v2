@@ -176,7 +176,7 @@ def show_map(trap_points):
                 "ScatterplotLayer",
                 data=df,
                 get_position="[longitude, latitude]",
-                get_radius=50,
+                get_radius=20,
                 get_color="color",
                 pickable=True,
                 auto_highlight=True,

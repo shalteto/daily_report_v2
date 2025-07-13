@@ -6,39 +6,7 @@ import piexif
 import io
 import math
 import uuid
-
-# from azure_.cosmosdb import CosmosDBClient # 今回の実行ではコメントアウト
-
-
-# ダミーのCosmosDBClientクラス
-class CosmosDBClient:
-    def __init__(self, container_name):
-        self.container_name = container_name
-        self.items = []  # データを保持するリスト
-
-    def search_container_by_query(self, query, params):
-        # 簡単なクエリシミュレーション
-        if "SELECT c.latitude, c.longitude FROM c" in query:
-            return [
-                {"latitude": item["latitude"], "longitude": item["longitude"]}
-                for item in self.items
-                if "latitude" in item and "longitude" in item
-            ]
-        elif "SELECT c.latitude, c.longitude, c.name FROM c" in query:
-            return self.items
-        return []
-
-    def upsert_to_container(self, new_items):
-        for item in new_items:
-            # 既存のIDがあれば更新、なければ追加
-            found = False
-            for i, existing_item in enumerate(self.items):
-                if existing_item.get("id") == item.get("id"):
-                    self.items[i] = item
-                    found = True
-                    break
-            if not found:
-                self.items.append(item)
+from azure_.cosmosdb import CosmosDBClient
 
 
 # --- GPS座標抽出 ---
@@ -348,7 +316,7 @@ def main():
     client = st.session_state["cosmos_client_traps"]
 
     # 既存座標データ取得
-    query = "SELECT c.latitude, c.longitude FROM c"
+    query = "SELECT c.latitude, c.longitude, c.name FROM c"
     existing = client.search_container_by_query(query, [])
     existing_coords = [
         (r["latitude"], r["longitude"])

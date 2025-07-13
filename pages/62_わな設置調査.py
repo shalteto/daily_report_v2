@@ -176,7 +176,7 @@ def show_map(trap_points):
                 "ScatterplotLayer",
                 data=df,
                 get_position="[longitude, latitude]",
-                get_radius=20,
+                get_radius=50,
                 get_color="color",
                 pickable=True,
                 auto_highlight=True,
@@ -194,7 +194,7 @@ def show_map(trap_points):
             filled=False,
             stroked=True,
             get_line_color=[0, 0, 255, 255],  # 青
-            get_line_width=25,
+            get_line_width=15,
             pickable=True,
             auto_highlight=True,
             id="mesh_target_layer",
@@ -210,7 +210,7 @@ def show_map(trap_points):
             filled=False,
             stroked=True,
             get_line_color=[255, 0, 0, 255],  # 赤
-            get_line_width=50,
+            get_line_width=25,
             pickable=True,
             auto_highlight=True,
             id="mesh_special_layer",

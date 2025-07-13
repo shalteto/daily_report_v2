@@ -8,6 +8,8 @@ import math
 import uuid
 from azure_.cosmosdb import CosmosDBClient
 
+st.set_page_config(page_title="わな設置調査", layout="wide", page_icon="🐗")
+
 
 # --- GPS座標抽出 ---
 def get_gps_coordinates(file_data):

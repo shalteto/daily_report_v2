@@ -21,7 +21,7 @@ def main():
         if st.button("撤去"):
             st.session_state.trap_page = "status_change"
     with col3:
-        if st.button("名前・個数変更"):
+        if st.button("データ編集"):
             st.session_state.trap_page = "trap_edit"
 
     if st.session_state.trap_page == "None":

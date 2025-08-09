@@ -249,22 +249,41 @@ def trap_edit():
             default=selected_trap["number"],
         )
 
-        if st.button("更新"):
-            selected_trap["trap_name"] = trap_name
-            selected_trap["trap_type"] = trap_type
-            selected_trap["number"] = number
+    start_date = st.date_input(
+        "設置日",
+        value=(
+            datetime.strptime(selected_trap["start_date"], "%Y-%m-%d")
+            if selected_trap.get("start_date")
+            else datetime.now()
+        ),
+    )
+    end_date = st.date_input(
+        "撤去日（未撤去の場合は空欄）",
+        value=(
+            datetime.strptime(selected_trap["end_date"], "%Y-%m-%d")
+            if selected_trap.get("end_date")
+            else None
+        ),
+    )
 
-            try:
-                client.upsert_to_container(data=selected_trap)
-                st.success("更新完了")
+    if st.button("更新"):
+        selected_trap["trap_name"] = trap_name
+        selected_trap["trap_type"] = trap_type
+        selected_trap["number"] = number
+        selected_trap["start_date"] = start_date.strftime("%Y-%m-%d")
+        selected_trap["end_date"] = end_date.strftime("%Y-%m-%d") if end_date else None
 
-                for trap in st.session_state.traps: # trap_data => traps
-                    if trap["id"] == selected_trap["id"]:
-                        trap["trap_name"] = trap_name
-                        trap["trap_type"] = trap_type
-                        trap["number"] = number
-                        break
-            except Exception as e:
-                st.error(f"CosmosDB登録エラー: {e}")
-    else:
-        st.info("罠を１つ選択してください")
+        try:
+            client.upsert_to_container(data=selected_trap)
+            st.success("更新完了")
+
+            for trap in st.session_state.traps:
+                if trap["id"] == selected_trap["id"]:
+                    trap["trap_name"] = trap_name
+                    trap["trap_type"] = trap_type
+                    trap["number"] = number
+                    trap["start_date"] = selected_trap["start_date"]
+                    trap["end_date"] = selected_trap["end_date"]
+                    break
+        except Exception as e:
+            st.error(f"CosmosDB登録エラー: {e}")

@@ -36,7 +36,7 @@ def main():
         alt.Chart(df)
         .mark_bar()
         .encode(
-            x=alt.X("start_date:T", title="開始日"),
+            x=alt.X("start_date:T", title="開始日", axis=alt.Axis(format="%m/%d")),
             x2="end_date:T",
             y=alt.Y("label:N", sort=None, title="わな種別 - 名前"),
             color=alt.Color(
@@ -46,7 +46,13 @@ def main():
                     range=list(status_colors.values()),
                 ),
             ),
-            tooltip=["trap_type", "trap_name", "status", "start_date", "end_date"],
+            tooltip=[
+                "trap_type",
+                "trap_name",
+                "status",
+                alt.Tooltip("start_date:T", title="開始日", format="%Y-%m-%d"),
+                alt.Tooltip("end_date:T", title="終了日", format="%Y-%m-%d"),
+            ],
         )
         .properties(height=400)
     )

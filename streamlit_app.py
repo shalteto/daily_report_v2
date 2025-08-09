@@ -8,7 +8,9 @@ st.set_page_config(page_title="SAT Report", layout="wide", page_icon="🐗")
 @with_init
 def main():
     st.text("合同会社ＳＡＴ")
-    st.subheader("作業報告アプリ🐗🦌🦋")
+    st.subheader("作業報告アプリ")
+    st.image("images/sat_logo.png", width=200)
+
     st.write('左上の"＞"でメニューを表示')
     st.write("---")
 

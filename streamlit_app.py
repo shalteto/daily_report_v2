@@ -7,12 +7,19 @@ st.set_page_config(page_title="SAT Report", layout="wide", page_icon="🐗")
 
 @with_init
 def main():
-    st.text("合同会社ＳＡＴ")
-    st.subheader("作業報告アプリ")
-    st.image("images/sat_logo.png", width=200)
+    st.markdown(
+        "<h1 style='font-family:Arial, sans-serif; color:#2F4F4F; margin-bottom:0;'>合同会社ＳＡＴ</h1>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<h3 style='font-family:Arial, sans-serif; color:#4B8BBE; margin-top:0;'>作業報告アプリ</h3>",
+        unsafe_allow_html=True,
+    )
+    st.image("images/sat_logo.png", width=300, use_container_width=False)
 
-    st.write('左上の"＞"でメニューを表示')
-    st.write("---")
+    st.info('左上の"＞"でメニューを表示')
+
+    st.markdown("<hr style='border:1px solid #eee;'>", unsafe_allow_html=True)
 
 
 def user_select():

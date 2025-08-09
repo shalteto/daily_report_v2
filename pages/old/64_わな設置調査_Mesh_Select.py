@@ -1,113 +1,11 @@
 import streamlit as st
 import pandas as pd
 import pydeck as pdk
-from PIL import Image
-import piexif
-import io
 import math
 import uuid
 from azure_.cosmosdb import CosmosDBClient
-
-
-# --- GPS座標抽出 ---
-def get_gps_coordinates(file_data):
-    img = Image.open(io.BytesIO(file_data))
-    exif_data = img.info.get("exif")
-    if not exif_data:
-        return None
-    exif_dict = piexif.load(exif_data)
-    gps_info = exif_dict.get("GPS", {})
-    if not gps_info:
-        return None
-
-    def convert_to_degrees(value):
-        d, m, s = value
-        return d[0] / d[1] + (m[0] / m[1]) / 60 + (s[0] / s[1]) / 3600
-
-    try:
-        lat = convert_to_degrees(gps_info[piexif.GPSIFD.GPSLatitude])
-        lon = convert_to_degrees(gps_info[piexif.GPSIFD.GPSLongitude])
-        if gps_info[piexif.GPSIFD.GPSLatitudeRef] != b"N":
-            lat = -lat
-        if gps_info[piexif.GPSIFD.GPSLongitudeRef] != b"E":
-            lon = -lon
-        return lat, lon
-    except Exception:
-        return None
-
-
-# --- 2点間距離（m） ---
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371000  # 地球半径[m]
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = (
-        math.sin(dphi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    )
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
-
-
-# --- 3次メッシュ関連関数 ---
-def latlon_to_meshcode(lat, lon, level=3):
-    """
-    緯度経度から地域メッシュコードを計算します。
-    ここでは3次メッシュのみを対象とします。
-    """
-    if level != 3:
-        st.error("現在、3次メッシュのみをサポートしています。")
-        return None
-
-    # 1次メッシュ
-    p1 = int(lat * 1.5)
-    u1 = int((lon - 100) / 1)
-
-    # 2次メッシュ
-    p2 = int((lat * 1.5 - p1) * 8)
-    u2 = int(((lon - 100) - u1) * 8)
-
-    # 3次メッシュ
-    p3 = int(((lat * 1.5 - p1) * 8 - p2) * 10)
-    u3 = int((((lon - 100) - u1) * 8 - u2) * 10)
-
-    mesh_code = f"{p1}{u1}{p2}{u2}{p3}{u3}"
-    return mesh_code
-
-
-def meshcode_to_latlon_bounds(mesh_code, level=3):
-    """
-    地域メッシュコードから緯度経度の境界を計算します。
-    """
-    if level != 3 or len(mesh_code) != 8:
-        st.error(
-            "現在、3次メッシュのみをサポートしており、メッシュコードは8桁である必要があります。"
-        )
-        return None
-
-    p1 = int(mesh_code[0:2])
-    u1 = int(mesh_code[2:4])
-    p2 = int(mesh_code[4])
-    u2 = int(mesh_code[5])
-    p3 = int(mesh_code[6])
-    u3 = int(mesh_code[7])
-
-    # 南西端の緯度経度
-    lat_sw = (p1 + p2 / 8 + p3 / 80) / 1.5
-    lon_sw = (u1 + u2 / 8 + u3 / 80) + 100
-
-    # 北東端の緯度経度
-    lat_ne = (p1 + p2 / 8 + p3 / 80 + 1 / 80) / 1.5
-    lon_ne = (u1 + u2 / 8 + u3 / 80 + 1 / 80) + 100
-
-    return {
-        "south_west": (lat_sw, lon_sw),
-        "north_east": (lat_ne, lon_ne),
-        "north_west": (lat_ne, lon_sw),
-        "south_east": (lat_sw, lon_ne),
-    }
+from services.map_mesh import meshcode_to_latlon_bounds, aichi_mesh_convert
+from services.gps import get_gps_coordinates, haversine, latlon_to_meshcode
 
 
 def generate_mesh_polygons(bbox_ne, bbox_sw):
@@ -193,7 +91,11 @@ def generate_mesh_polygons(bbox_ne, bbox_sw):
                     [bounds["north_west"][1], bounds["north_west"][0]],  # NW (lon, lat)
                     [bounds["south_west"][1], bounds["south_west"][0]],  # SWに戻る
                 ]
-                mesh_polygons.append({"path": polygon, "code": current_mesh_code})
+                # Aichi mesh名を追加
+                mesh_name = aichi_mesh_convert(current_mesh_code)
+                mesh_polygons.append(
+                    {"path": polygon, "code": current_mesh_code, "name": mesh_name}
+                )
 
     return mesh_polygons
 
@@ -279,7 +181,7 @@ def show_map(trap_points, mesh_polygons=None):
         initial_view_state=view_state,
         map_style=map_style_url,
         tooltip={
-            "html": "<b>メッシュコード:</b> {code}<br/><b>名前:</b> {name}"
+            "html": "<b>mesh code:</b> {code}<br/><b>Aichi mesh:</b> {name}"
         },  # メッシュコードと名前を表示
     )
     # 複数選択・選択イベント対応
@@ -302,12 +204,13 @@ def show_map(trap_points, mesh_polygons=None):
     else:
         st.session_state.selected_mesh_codes = []
     if st.session_state.selected_mesh_codes:
-        st.info(
-            "選択中のメッシュコード: " + ", ".join(st.session_state.selected_mesh_codes)
-        )
+        st.info("選択中: " + ", ".join(st.session_state.selected_mesh_codes))
 
 
-# --- Streamlit UI ---
+from st_init import with_init
+
+
+@with_init
 def main():
     st.subheader("わな設置調査 - 座標登録＆地図表示")
     # CosmosDBクライアント
@@ -387,9 +290,9 @@ def main():
     st.subheader("地図上に座標を表示")
 
     # メッシュ生成範囲の定義
-    # 北東の端：34.680930, 137.218362
+    # 北東の端：34.680930, 137.301580
     # 南西の端：34.583401, 137.082856
-    bbox_ne = (34.680930, 137.218362)
+    bbox_ne = (34.680930, 137.301580)
     bbox_sw = (34.583401, 137.082856)
 
     # 3次メッシュポリゴンの生成

@@ -48,39 +48,15 @@ def submit_data(data):
 
 def trap_set():
     st.subheader("罠設置")
-
-    # --- 座標取得方法を先に選択 ---
-    st.markdown("#### 座標取得方法を選択")
-    coord_method = st.radio(
-        "座標取得方法", ("写真のGPSデータ", "手動入力"), horizontal=True
-    )
-
     with st.form(key="trap_set_form"):
         st.write("1地点ずつ登録してください")
         trap_id = get_trap_id()
         st.markdown(f"罠番号: **{trap_id}**")
-
-        # --- 選択に応じた入力欄表示 ---
-        trap_images = None
-        manual_lat, manual_lon = None, None
-
-        if coord_method == "写真のGPSデータ":
-            trap_images = st.file_uploader(
-                "1地点で1つ写真撮影（GPS情報付き）",
-                accept_multiple_files=True,
-                type=["jpg", "png"],
-            )
-        else:  # 手動入力
-            col1, col2 = st.columns(2)
-            with col1:
-                manual_lat = st.number_input(
-                    "緯度", format="%.6f", value=34.600000, step=0.000001
-                )
-            with col2:
-                manual_lon = st.number_input(
-                    "経度", format="%.6f", value=137.200000, step=0.000001
-                )
-
+        trap_images = st.file_uploader(
+            "1地点で1つ写真撮影",
+            accept_multiple_files=True,
+            type=["jpg", "png"],
+        )
         trap_name = st.text_input(
             "罠の通称（地図に表示する任意の名称）", key="trap_name"
         )
@@ -97,38 +73,26 @@ def trap_set():
             selection_mode="single",
         )
         date = st.date_input("日付")
-
         submit_button = st.form_submit_button(label="送信")
 
-        # --- フォーム送信後の処理 ---
         if submit_button:
+            gps_data = False
             gps_coordinates = None
+            if trap_images and len(trap_images) > 0:
+                with st.spinner("GPSデータ取得中...", show_time=True):
+                    # 最初の画像からGPSデータを取得
+                    trap_images[0].seek(0)
+                    gps_coordinates = get_gps_coordinates(trap_images[0].read())
+                    if gps_coordinates:
+                        gps_data = True
+                    trap_images[0].seek(0)
 
-            if coord_method == "写真のGPSデータ":
-                if trap_images and len(trap_images) > 0:
-                    with st.spinner("GPSデータ取得中...", show_time=True):
-                        trap_images[0].seek(0)
-                        gps_coordinates = get_gps_coordinates(trap_images[0].read())
-                        trap_images[0].seek(0)
-                else:
-                    st.error("写真をアップロードしてください。")
-                    return
-
-            else:  # 手動入力
-                if manual_lat and manual_lon:
-                    gps_coordinates = (manual_lat, manual_lon)
-                else:
-                    st.error("緯度と経度を入力してください。")
-                    return
-
-            # --- 共通登録処理 ---
-            if trap_name and gps_coordinates:
-                images = []
-                if coord_method == "アップロード画像のGPSデータ":
-                    with st.spinner("画像アップロード中...", show_time=True):
-                        images = file_upload_trap(trap_images, trap_id)
-
+            if trap_images and trap_name and gps_data:
+                with st.spinner("画像アップロード中...", show_time=True):
+                    images = file_upload_trap(trap_images, trap_id)
+                # 画像情報に緯度経度を追加
                 lat, lon = gps_coordinates
+
                 data = {
                     "id": str(uuid.uuid4()),
                     "category": "trap",
@@ -154,9 +118,16 @@ def trap_set():
                 except Exception as e:
                     st.error(f"CosmosDB登録エラー: {e}")
                     return
+
             else:
+                if not trap_images:
+                    st.error("写真をアップロードしてください。")
                 if not trap_name:
                     st.error("罠の通称を入力してください。")
+                if not gps_data:
+                    st.error(
+                        "どの写真ファイルにもGPSデータがありません。スマホのカメラ設定でGPS情報を含める設定をしてください。"
+                    )
 
 
 def change_trap_status(map_data, status, end_date=None):
@@ -258,7 +229,7 @@ def trap_edit():
                 client.upsert_to_container(data=selected_trap)
                 st.success("更新完了")
 
-                for trap in st.session_state.traps: # trap_data => traps
+                for trap in st.session_state.trap_data:
                     if trap["id"] == selected_trap["id"]:
                         trap["trap_name"] = trap_name
                         trap["trap_type"] = trap_type

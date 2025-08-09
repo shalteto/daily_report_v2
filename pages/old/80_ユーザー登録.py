@@ -3,7 +3,10 @@ from page_parts.input_users import user_main
 
 st.set_page_config(page_title="ユーザー登録", layout="wide", page_icon="🐗")
 
+from st_init import with_init
 
+
+@with_init
 def main():
     if st.session_state.user is not None and st.session_state.user["admin"] == True:
         user_main()

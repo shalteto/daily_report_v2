@@ -1,4 +1,3 @@
-# 緯度経度の情報から、メッシュ情報を取得する
 def aichi_mesh_convert(mesh):
     """
     mesh番号の上4桁を以下のルールで記号に変換する。
@@ -62,6 +61,33 @@ def get_aichi_mesh(lat, lon):
     mesh = get_mesh(lat, lon)
     aichi_mesh = aichi_mesh_convert(mesh)
     return aichi_mesh
+
+
+def meshcode_to_latlon_bounds(mesh_code, level=3):
+    """
+    地域メッシュコードから緯度経度の境界を計算します。
+    """
+    p1 = int(mesh_code[0:2])
+    u1 = int(mesh_code[2:4])
+    p2 = int(mesh_code[4])
+    u2 = int(mesh_code[5])
+    p3 = int(mesh_code[6])
+    u3 = int(mesh_code[7])
+
+    # 南西端の緯度経度
+    lat_sw = (p1 + p2 / 8 + p3 / 80) / 1.5
+    lon_sw = (u1 + u2 / 8 + u3 / 80) + 100
+
+    # 北東端の緯度経度
+    lat_ne = (p1 + p2 / 8 + p3 / 80 + 1 / 80) / 1.5
+    lon_ne = (u1 + u2 / 8 + u3 / 80 + 1 / 80) + 100
+
+    return {
+        "south_west": (lat_sw, lon_sw),
+        "north_east": (lat_ne, lon_ne),
+        "north_west": (lat_ne, lon_sw),
+        "south_east": (lat_sw, lon_ne),
+    }
 
 
 # 使い方

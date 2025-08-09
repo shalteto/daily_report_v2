@@ -1,5 +1,4 @@
 import streamlit as st
-from page_parts.trap_map import trap_map
 from datetime import datetime, timedelta
 from azure_.one_drive import upload_onedrive, download_onedrive_image
 import uuid
@@ -46,7 +45,7 @@ def upsert_daily_report():
             default=st.session_state.user["user_name"],
         )
         task_type = st.segmented_control(
-            "作業内容選択",
+            "作業内容選択(複数作業の場合は1つ選択して備考に他作業を記載)",
             list(st.session_state.task_type_option.keys()),
             selection_mode="single",
         )
@@ -294,7 +293,7 @@ def edit_daily_report():
                     st.session_state[confirm_key] = True
                 if st.session_state.get(confirm_key, False):
                     st.warning(f"本当に削除しますか？")
-                    if st.button("削除", key=f"confirm_yes_{d['id']}"):
+                    if st.button("はい", key=f"confirm_yes_{d['id']}"):
                         with st.spinner("送信中...", show_time=True):
                             # データを削除
                             client.delete_item_from_container(d["id"], "daily")

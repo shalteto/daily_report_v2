@@ -20,17 +20,28 @@ def get_result_ids(num=1, user_name=None):
     DBから最新のcatch_resultsを取得し、未使用の連番IDをnum個発行・仮登録する。
     仮登録レコードは status="reserved" で保存。
     user_name: 発行ユーザー識別用
-    戻り値: 発行したIDリスト
+    戻り値: 発行したIDリスト（例: ["ﾀ-1", "ﾀ-2"]）
     """
     # 最新データ取得
     data = get_all_data()
     st.session_state.catch_results = data["catch_results"]
+
+    # 既存IDの数値部分だけを抽出
     used_ids = set()
     for d in st.session_state.catch_results:
-        try:
-            used_ids.add(int(d.get("result_id", 0)))
-        except Exception:
-            pass
+        rid = d.get("result_id", "")
+        if isinstance(rid, str) and rid.startswith("ﾀ-"):
+            try:
+                used_ids.add(int(rid.split("-", 1)[1]))
+            except ValueError:
+                pass
+        else:
+            # 旧フォーマットにも対応
+            try:
+                used_ids.add(int(rid))
+            except Exception:
+                pass
+
     # 連番で未使用IDをnum個探す
     next_ids = []
     i = 1
@@ -42,21 +53,25 @@ def get_result_ids(num=1, user_name=None):
     client = st.session_state["cosmos_client"]
     fy = st.session_state.get("fy", "2025年度")
     reserved = []
-    for rid in next_ids:
+    for rid_num in next_ids:
+        rid_str = f"ﾀ-{rid_num}"
         rec = {
             "id": str(uuid.uuid4()),
             "category": "result",
             "fy": fy,
-            "result_id": str(rid),
+            "result_id": rid_str,
             "status": "reserved",
             "reserved_by": user_name,
-            "reserved_at": str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            "reserved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         client.upsert_to_container(rec)
         reserved.append(rec)
+
     # session_stateも更新
     st.session_state.catch_results += reserved
-    return [str(rid) for rid in next_ids]
+
+    # A-付きで返却
+    return [f"ﾀ-{rid_num}" for rid_num in next_ids]
 
 
 def upsert_catch_result():
@@ -69,7 +84,9 @@ def upsert_catch_result():
         trap_map(mode="稼働中", multi_select="single-object")
     if st.session_state.selected_objects:
         for p in st.session_state.selected_objects["map"]:
-            st.write(f"選択中の罠：{p['trap_name']}")
+            st.write(
+                f"{p["trap_name"]} / {round(p["latitude"],5)}, {round(p["longitude"],5)}"
+            )
 
     # --- 予約済みIDの取得 ---
     user_name = st.session_state.user["user_name"] if st.session_state.user else None
@@ -80,7 +97,11 @@ def upsert_catch_result():
         for d in st.session_state.catch_results
         if d.get("status") == "reserved" and d.get("reserved_by") == user_name
     ]
-    reserved_ids = sorted(reserved_ids, key=lambda x: int(x))
+    # result_idが「ﾀ-数字」形式なので、数字部分でソート
+    reserved_ids = sorted(
+        reserved_ids,
+        key=lambda x: int(x.split("-", 1)[1]) if isinstance(x, str) and "-" in x else 0,
+    )
 
     if reserved_ids:
         result_id = reserved_ids[0]
@@ -131,14 +152,26 @@ def upsert_catch_result():
                 for d in st.session_state.catch_results
                 if d.get("status") == "reserved" and d.get("reserved_by") == user_name
             ]
-            reserved_ids = sorted(reserved_ids, key=lambda x: int(x))
+            reserved_ids = sorted(
+                reserved_ids,
+                key=lambda x: (
+                    int(x.split("-", 1)[1]) if isinstance(x, str) and "-" in x else 0
+                ),
+            )
             st.rerun()
     with col2:
         # 予約済み発行IDのうち、最大のIDを1件だけ削除
         if reserved_ids:
             if st.button("予約済みIDを削除", key="delete_reserved_id"):
                 client = st.session_state["cosmos_client"]
-                max_id = max(reserved_ids, key=lambda x: int(x))
+                max_id = max(
+                    reserved_ids,
+                    key=lambda x: (
+                        int(x.split("-", 1)[1])
+                        if isinstance(x, str) and "-" in x
+                        else 0
+                    ),
+                )
                 # 仮登録レコードを削除
                 rec = next(
                     (

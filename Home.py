@@ -1,10 +1,11 @@
 # pip install streamlit
 import streamlit as st
-from st_init import init
+from st_init import init, with_init
 
 st.set_page_config(page_title="SAT Report", layout="wide", page_icon="🐗")
 
 
+@with_init
 def main():
     st.text("合同会社ＳＡＴ")
     st.subheader("作業報告アプリ🐗🦌🦋")

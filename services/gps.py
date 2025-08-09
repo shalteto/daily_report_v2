@@ -3,7 +3,7 @@ import piexif
 import io
 import requests
 import streamlit.components.v1 as components
-
+import math
 
 def get_location():
     html_code = """
@@ -26,6 +26,42 @@ def get_location():
     <div id="location">位置情報を取得中...</div>
     """
     components.html(html_code, height=30)
+
+# --- 2点間距離（m） ---
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000  # 地球半径[m]
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+
+# --- 3次メッシュ関連関数 ---
+def latlon_to_meshcode(lat, lon, level=3):
+    """
+    緯度経度から地域メッシュコードを計算します。
+    ここでは3次メッシュのみを対象とします。
+    """
+    # 1次メッシュ
+    p1 = int(lat * 1.5)
+    u1 = int((lon - 100) / 1)
+
+    # 2次メッシュ
+    p2 = int((lat * 1.5 - p1) * 8)
+    u2 = int(((lon - 100) - u1) * 8)
+
+    # 3次メッシュ
+    p3 = int(((lat * 1.5 - p1) * 8 - p2) * 10)
+    u3 = int((((lon - 100) - u1) * 8 - u2) * 10)
+
+    mesh_code = f"{p1}{u1}{p2}{u2}{p3}{u3}"
+    return mesh_code
 
 
 def get_gps_coordinates(file_data):

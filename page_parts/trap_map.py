@@ -44,8 +44,8 @@ def sample_trap_data():
     return trap_data
 
 
-def call_trap_date():
-    return st.session_state["traps"]
+# def call_trap_date():
+#     return st.session_state["traps"]
 
 
 map_style_options = {
@@ -59,7 +59,7 @@ map_style_options = {
 
 def trap_map(width=400, height=400, mode="稼働中", multi_select="multi-object"):
     trap_data = st.session_state.traps
-    # trap_data = sample_trap_data()
+    # trap_data = sample_trap_data() # デバッグ用のサンプルデータ
 
     if not trap_data:
         st.warning("トラップデータがありません。")
@@ -81,7 +81,7 @@ def trap_map(width=400, height=400, mode="稼働中", multi_select="multi-object
     trap_data["color"] = [[0, 255, 0]] * len(trap_data)  # デフォルトカラー（緑色）
     for idx, row in trap_data.iterrows():
         if row["status"] == "稼働中":
-            trap_data.at[idx, "color"] = [255, 216, 0, 160]  # 黄色
+            trap_data.at[idx, "color"] = [0, 0, 255, 160]  # 青色
         elif row["status"] == "撤去済み":
             trap_data.at[idx, "color"] = [225, 0, 0, 160]  # 赤色
 
@@ -146,7 +146,7 @@ def trap_map(width=400, height=400, mode="稼働中", multi_select="multi-object
         tooltip={"text": "{trap_name}"},
     )
     if mode != "稼働中":
-        st.caption("🟡稼働中  🔴撤去済み")
+        st.caption("🔵稼働中  🔴撤去済み")
     event = st.pydeck_chart(
         chart,
         selection_mode=multi_select,  # single-objectにするときは,
@@ -164,4 +164,6 @@ def trap_map(width=400, height=400, mode="稼働中", multi_select="multi-object
     # print(st.session_state.selected_objects)
     if st.session_state.selected_objects:
         for p in st.session_state.selected_objects["map"]:
-            print(p["trap_name"])
+            print(
+                f"trap_name: {p["trap_name"]} / 北緯(lat): {round(p["latitude"],5)} / 東経(lon): {round(p["longitude"],5)}"
+            )

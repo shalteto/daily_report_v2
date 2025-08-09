@@ -75,7 +75,6 @@ def get_result_ids(num=1, user_name=None):
 
 
 def upsert_catch_result():
-    st.subheader("捕獲実績登録")
     catch_method = st.segmented_control(
         "捕獲方法を選択",
         list(st.session_state.catch_method_option.keys()),
@@ -88,8 +87,6 @@ def upsert_catch_result():
             st.write(
                 f"{p["trap_name"]} / {round(p["latitude"],5)}, {round(p["longitude"],5)}"
             )
-    if not catch_method:
-        st.warning("捕獲方法を選択してください")
 
     # --- 予約済みIDの取得 ---
     user_name = st.session_state.user["user_name"] if st.session_state.user else None
@@ -195,8 +192,6 @@ def upsert_catch_result():
                     st.rerun()
         else:
             st.write("予約済みIDはありません")
-    if not catch_method:
-        return
 
     with st.form(key="catch_result"):
         st.caption("入力は１頭ずつ行って下さい")
@@ -222,7 +217,6 @@ def upsert_catch_result():
         )
         comment = st.text_input("(任意) コメントを入力")
 
-        # --- 画像フィールド定義 ---
         image_fields = [
             ("image1", "止め刺し直後の写真"),
             ("image2", "尻尾切除前"),
@@ -231,7 +225,10 @@ def upsert_catch_result():
                 "image4",
                 "焼却・自家消費・食肉加工：トラックの荷台で撮影／埋設：穴に獲物を入れた状態を撮影",
             ),
-            ("image5", "埋設：埋設後を撮影"),
+            (
+                "image5",
+                "埋設：埋設後を撮影",
+            ),
             ("image6", "歯列写真"),
         ]
         images = {}
@@ -240,16 +237,6 @@ def upsert_catch_result():
                 label, accept_multiple_files=False, type=["jpg", "png"]
             )
 
-        # --- 画像必須条件の判定 ---
-        def is_required_image(key, adult, disposal):
-            # 歯列写真は幼獣なら不要
-            if key == "image6" and adult == "幼獣":
-                return False
-            # image5は埋設以外なら不要
-            if key == "image5" and disposal != "埋設":
-                return False
-            return True
-
         trap = (
             [obj["id"] for obj in st.session_state.selected_objects.get("map", [])]
             if "map" in st.session_state.selected_objects
@@ -257,49 +244,41 @@ def upsert_catch_result():
         )
         submit_button = st.form_submit_button(label="送信")
 
-        if submit_button:
-            # 入力チェック
-            missing_fields = []
-            if not result_id:
-                missing_fields.append("捕獲識別番号を発行・選択してください。")
-            if not users:
-                missing_fields.append("従事者を選択してください。")
-            if not catch_method:
-                missing_fields.append("捕獲方法を選択してください。")
-            if not sex:
-                missing_fields.append("雌雄を選択してください。")
-            if not adult:
-                missing_fields.append("成獣・幼獣を選択してください。")
-            if not size:
-                missing_fields.append("頭胴長サイズを選択してください。")
-            if not disposal:
-                missing_fields.append("処分方法を選択してください。")
-            # 画像必須条件に応じてチェック
-            for key, label in image_fields:
-                if is_required_image(key, adult, disposal):
-                    if not images[key]:
-                        missing_fields.append(
-                            f"{label}画像をアップロードしてください。"
-                        )
-            if missing_fields:
-                for msg in missing_fields:
-                    st.error(msg)
-                return
+    if submit_button:
+        # 入力チェック
+        missing_fields = []
+        if not result_id:
+            missing_fields.append("捕獲識別番号を発行・選択してください。")
+        if not users:
+            missing_fields.append("従事者を選択してください。")
+        if not catch_method:
+            missing_fields.append("捕獲方法を選択してください。")
+        if not sex:
+            missing_fields.append("雌雄を選択してください。")
+        if not adult:
+            missing_fields.append("成獣・幼獣を選択してください。")
+        if not size:
+            missing_fields.append("頭胴長サイズを選択してください。")
+        if not disposal:
+            missing_fields.append("処分方法を選択してください。")
+        for key, label in image_fields:
+            if not images[key]:
+                missing_fields.append(f"{label}画像をアップロードしてください。")
+        if missing_fields:
+            for msg in missing_fields:
+                st.error(msg)
+            return
 
         with st.spinner("データを送信しています...", show_time=True):
             now = datetime.now().strftime("%Y%m%d%H%M%S")
             image_names = {}
 
             for idx, (key, _) in enumerate(image_fields, 1):
-                if not is_required_image(key, adult, disposal):
-                    image_names[key] = None
-                    continue  # 不要な画像はスキップ
                 file = images[key]
-                if file is None:
-                    return
                 file.seek(0)
                 ext = file.name.split(".")[-1]
                 name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.{ext}"
+                print(f"アップロード開始{key}：{name}")
                 upload_onedrive(f"catch_result/{name}", file)
                 image_names[key] = name
 
@@ -357,7 +336,7 @@ def upsert_catch_result():
                 if d["id"] == reserved_rec["id"]:
                     st.session_state.catch_results[i] = data
                     break
-            st.success(f"{result_id}: 登録完了しました。")
+            st.success("正式登録が完了しました")
 
         # 使用済みIDは選択肢から除外
         if "issued_result_ids" in st.session_state:

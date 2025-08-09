@@ -1,7 +1,7 @@
 import streamlit as st
 from page_parts.trap_set import trap_set, trap_stasus_change, trap_edit
 
-st.set_page_config(page_title="わな設置", layout="wide", page_icon="🐗")
+# st.set_page_config(page_title="わな設置", layout="wide", page_icon="🐗")
 
 from st_init import with_init
 
@@ -12,7 +12,7 @@ def main():
         st.warning("最初の画面でログインをしてください。")
         return
 
-    st.subheader("わな設置・状況変更🦌🦌")
+    st.subheader("わな管理")
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("新規設置"):

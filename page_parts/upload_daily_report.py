@@ -34,7 +34,7 @@ def submit_data(data):
 
 
 def upsert_daily_report():
-    st.subheader("作業報告🐗")
+    st.subheader("作業日報")
     with st.form(key="daily_report"):
         # st.write(st.session_state.user)
         users = st.segmented_control(

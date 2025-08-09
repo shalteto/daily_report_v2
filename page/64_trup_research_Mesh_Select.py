@@ -212,7 +212,7 @@ from st_init import with_init
 
 @with_init
 def main():
-    st.subheader("わな設置調査 - 座標登録＆地図表示")
+    st.subheader("わな設置調査 - Mesh選択")
     # CosmosDBクライアント
     if "cosmos_client_traps" not in st.session_state:
         st.session_state["cosmos_client_traps"] = CosmosDBClient(container_name="traps")

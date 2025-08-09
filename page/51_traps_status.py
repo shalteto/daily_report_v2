@@ -4,7 +4,7 @@ import altair as alt
 from datetime import datetime
 from st_init import with_init
 
-st.set_page_config(page_title="わな稼働状況", layout="wide", page_icon="🐗")
+# st.set_page_config(page_title="わな稼働状況", layout="wide", page_icon="🐗")
 
 
 @with_init

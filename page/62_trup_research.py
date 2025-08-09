@@ -6,7 +6,7 @@ from azure_.cosmosdb import CosmosDBClient
 from services.map_mesh import meshcode_to_latlon_bounds
 from services.gps import get_gps_coordinates, haversine
 
-st.set_page_config(page_title="わな設置調査", layout="wide", page_icon="🐗")
+# st.set_page_config(page_title="わな設置調査", layout="wide", page_icon="🐗")
 
 
 # --- 地図表示 ---
@@ -143,7 +143,7 @@ from st_init import with_init
 
 @with_init
 def main():
-    st.subheader("わな設置調査 - 座標登録＆地図表示")
+    st.subheader("わな設置調査")
     # CosmosDBクライアント
     if "cosmos_client_traps" not in st.session_state:
         st.session_state["cosmos_client_traps"] = CosmosDBClient(container_name="traps")

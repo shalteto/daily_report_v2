@@ -494,7 +494,7 @@ def edit_catch_result():
                         for img_idx, (img_key, img_label) in enumerate(image_fields):
                             img_name = d.get(img_key)
                             if img_name:
-                                file_path = f"catch_result/{img_name}"
+                                file_path = f"Apps_Images/catch_result/{img_name}"
                                 image_data, error = download_onedrive_image(file_path)
                                 if error:
                                     st.warning(f"{img_name} の取得失敗: {error}")

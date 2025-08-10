@@ -198,7 +198,7 @@ def edit_daily_report():
                         if images:
                             st.text("アップロード済み画像:")
                             for img_idx, img in enumerate(images):
-                                file_path = f"daily_report/{img['name']}"
+                                file_path = f"Apps_Images/daily_report/{img['name']}"
                                 image_data, error = download_onedrive_image(file_path)
                                 if error:
                                     st.warning(f"{img['name']} の取得失敗: {error}")

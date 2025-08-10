@@ -21,7 +21,7 @@ pages = {
     "管理": [
         st.Page("page/30_traps.py", title="わな管理"),
         st.Page("page/62_trup_research.py", title="わな設置調査"),
-        st.Page("page/64_trup_research_Mesh_Select.py", title="罠設置調査_Mesh Select"),
+        # st.Page("page/64_trup_research_Mesh_Select.py", title="罠設置調査_Mesh Select"),
         # st.Page("page/80_user_input.py", title="ユーザー登録"),
         # st.Page("page/90_order_input.py", title="受注情報登録"),
     ],

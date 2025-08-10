@@ -19,7 +19,7 @@ def file_upload_trap(uploaded_files, trap_id):
         images.append({"name": blob_name})
         uploaded_file.seek(0)
         upload_onedrive(
-            blob_name,
+            f"Apps_Images/trap_set/{blob_name}",
             uploaded_file,
         )
         index += 1
@@ -124,7 +124,7 @@ def trap_set():
             # --- 共通登録処理 ---
             if trap_name and gps_coordinates:
                 images = []
-                if coord_method == "アップロード画像のGPSデータ":
+                if coord_method == "写真のGPSデータ":
                     with st.spinner("画像アップロード中...", show_time=True):
                         images = file_upload_trap(trap_images, trap_id)
 
@@ -249,22 +249,22 @@ def trap_edit():
             default=selected_trap["number"],
         )
 
-    start_date = st.date_input(
-        "設置日",
-        value=(
-            datetime.strptime(selected_trap["start_date"], "%Y-%m-%d")
-            if selected_trap.get("start_date")
-            else datetime.now()
-        ),
-    )
-    end_date = st.date_input(
-        "撤去日（未撤去の場合は空欄）",
-        value=(
-            datetime.strptime(selected_trap["end_date"], "%Y-%m-%d")
-            if selected_trap.get("end_date")
-            else None
-        ),
-    )
+        start_date = st.date_input(
+            "設置日",
+            value=(
+                datetime.strptime(selected_trap["start_date"], "%Y-%m-%d")
+                if selected_trap.get("start_date")
+                else datetime.now()
+            ),
+        )
+        end_date = st.date_input(
+            "撤去日（未撤去の場合は空欄）",
+            value=(
+                datetime.strptime(selected_trap["end_date"], "%Y-%m-%d")
+                if selected_trap.get("end_date")
+                else None
+            ),
+        )
 
     if st.button("更新"):
         selected_trap["trap_name"] = trap_name

@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import uuid
 from datetime import datetime
-from azure_.one_drive import upload_onedrive, download_onedrive_image
+
+# from azure_.one_drive import upload_onedrive, download_onedrive_image
 
 
 def user_main():

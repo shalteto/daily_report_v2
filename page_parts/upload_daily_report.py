@@ -17,7 +17,7 @@ def file_upload_daily(uploaded_file, task_type):
     images.append({"name": blob_name})
     uploaded_file.seek(0)
     upload_onedrive(
-        f"daily_report/{blob_name}",
+        f"Apps_Images/daily_report/{blob_name}",
         uploaded_file,
     )
     return images
@@ -239,7 +239,7 @@ def edit_daily_report():
                                             new_blob_name = f"{now}_{st.session_state.task_type_option[d['task_type']]}_{img_idx+1}.{extension}"
                                             replace_file.seek(0)
                                             upload_onedrive(
-                                                f"daily_report/{new_blob_name}",
+                                                f"Apps_Images/daily_report/{new_blob_name}",
                                                 replace_file,
                                             )
                                             d["images"][img_idx]["name"] = new_blob_name
@@ -257,7 +257,8 @@ def edit_daily_report():
                                         blob_name = f"{now}_{st.session_state.task_type_option[d['task_type']]}_{i}.{extension}"
                                         add_file.seek(0)
                                         upload_onedrive(
-                                            f"daily_report/{blob_name}", add_file
+                                            f"Apps_Images/daily_report/{blob_name}",
+                                            add_file,
                                         )
                                         d["images"].append({"name": blob_name})
                                     st.success("写真を追加しました。")

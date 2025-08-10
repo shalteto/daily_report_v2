@@ -300,7 +300,7 @@ def upsert_catch_result():
                 file.seek(0)
                 ext = file.name.split(".")[-1]
                 name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.{ext}"
-                upload_onedrive(f"catch_result/{name}", file)
+                upload_onedrive(f"Apps_Images/catch_result/{name}", file)
                 image_names[key] = name
 
             location_image = images["image2"]
@@ -536,7 +536,8 @@ def edit_catch_result():
                                     new_img_name = f"{now}_{st.session_state.catch_method_option[edit_catch_method]}_{img_key}.{ext}"
                                     replace_file.seek(0)
                                     upload_onedrive(
-                                        f"catch_result/{new_img_name}", replace_file
+                                        f"Apps_Images/catch_result/{new_img_name}",
+                                        replace_file,
                                     )
                                     d[img_key] = new_img_name
                                     st.success(

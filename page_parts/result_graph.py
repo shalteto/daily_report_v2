@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import pydeck as pdk
 import numpy as np
-from result_sample import sample_data
 import altair as alt
 
 

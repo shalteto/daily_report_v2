@@ -5,25 +5,20 @@ import uuid
 from azure_.cosmosdb import CosmosDBClient
 from services.map_mesh import meshcode_to_latlon_bounds
 from services.gps import get_gps_coordinates, haversine
+from services.mesh_polygons import (
+    target_mesh_code as _target_mesh_code,
+    special_target_mesh_code as _special_target_mesh_code,
+    mesh_polygons,
+)
 
 # st.set_page_config(page_title="わな設置調査", layout="wide", page_icon="🐗")
 
 
 # --- 地図表示 ---
 def show_map(trap_points):
-    import importlib.util
-    import os
 
-    # mesh_polygons.pyからtarget_mesh_code, special_target_mesh_codeを取得
-    mesh_codes_path = os.path.join(os.path.dirname(__file__), "..", "mesh_polygons.py")
-    mesh_codes_path = os.path.abspath(mesh_codes_path)
-    spec = importlib.util.spec_from_file_location("mesh_polygons", mesh_codes_path)
-    mesh_polygons_mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mesh_polygons_mod)
-    target_mesh_code = set(str(code) for code in mesh_polygons_mod.target_mesh_code)
-    special_target_mesh_code = set(
-        str(code) for code in mesh_polygons_mod.special_target_mesh_code
-    )
+    target_mesh_code = {str(code) for code in _target_mesh_code}
+    special_target_mesh_code = {str(code) for code in _special_target_mesh_code}
 
     # target/special mesh codeからポリゴン生成
     def meshcode_to_polygon(code):

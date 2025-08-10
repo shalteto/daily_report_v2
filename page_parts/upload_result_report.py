@@ -357,6 +357,7 @@ def upsert_catch_result():
                 if d["id"] == reserved_rec["id"]:
                     st.session_state.catch_results[i] = data
                     break
+            submit_button = False  # フォーム送信後は再送信防止
             st.success(f"{result_id}: 登録完了しました。")
 
         # 使用済みIDは選択肢から除外

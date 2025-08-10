@@ -85,6 +85,7 @@ def upsert_daily_report():
                     "comment": comment,
                 }
                 submit_data(data)
+                submit_button = False  # フォーム送信後は再送信防止
                 st.session_state["daily_reports"].append(data)
             else:
                 if not users:

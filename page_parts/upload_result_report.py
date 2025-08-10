@@ -258,113 +258,122 @@ def upsert_catch_result():
         submit_button = st.form_submit_button(label="送信")
 
         if submit_button:
-            # 入力チェック
-            missing_fields = []
-            if not result_id:
-                missing_fields.append("捕獲識別番号を発行・選択してください。")
-            if not users:
-                missing_fields.append("従事者を選択してください。")
-            if not catch_method:
-                missing_fields.append("捕獲方法を選択してください。")
-            if not sex:
-                missing_fields.append("雌雄を選択してください。")
-            if not adult:
-                missing_fields.append("成獣・幼獣を選択してください。")
-            if not size:
-                missing_fields.append("頭胴長サイズを選択してください。")
-            if not disposal:
-                missing_fields.append("処分方法を選択してください。")
-            # 画像必須条件に応じてチェック
-            for key, label in image_fields:
-                if is_required_image(key, adult, disposal):
-                    if not images[key]:
-                        missing_fields.append(
-                            f"{label}画像をアップロードしてください。"
-                        )
-            if missing_fields:
-                for msg in missing_fields:
-                    st.error(msg)
-                return
+            st.session_state.report_submitted = True
 
-        with st.spinner("データを送信しています...", show_time=True):
-            now = datetime.now().strftime("%Y%m%d%H%M%S")
-            image_names = {}
-
-            for idx, (key, _) in enumerate(image_fields, 1):
-                if not is_required_image(key, adult, disposal):
-                    image_names[key] = None
-                    continue  # 不要な画像はスキップ
-                file = images[key]
-                if file is None:
+            if st.session_state.report_submitted:
+                # 入力チェック
+                missing_fields = []
+                if not result_id:
+                    missing_fields.append("捕獲識別番号を発行・選択してください。")
+                if not users:
+                    missing_fields.append("従事者を選択してください。")
+                if not catch_method:
+                    missing_fields.append("捕獲方法を選択してください。")
+                if not sex:
+                    missing_fields.append("雌雄を選択してください。")
+                if not adult:
+                    missing_fields.append("成獣・幼獣を選択してください。")
+                if not size:
+                    missing_fields.append("頭胴長サイズを選択してください。")
+                if not disposal:
+                    missing_fields.append("処分方法を選択してください。")
+                # 画像必須条件に応じてチェック
+                for key, label in image_fields:
+                    if is_required_image(key, adult, disposal):
+                        if not images[key]:
+                            missing_fields.append(
+                                f"{label}画像をアップロードしてください。"
+                            )
+                if missing_fields:
+                    for msg in missing_fields:
+                        st.error(msg)
                     return
-                file.seek(0)
-                ext = file.name.split(".")[-1]
-                name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.{ext}"
-                upload_onedrive(f"Apps_Images/catch_result/{name}", file)
-                image_names[key] = name
 
-            location_image = images["image2"]
-            location_image.seek(0)
-            gps_coordinates = get_gps_coordinates(location_image.read())
-            if gps_coordinates:
-                gps_data = True
-            location_image.seek(0)
-            lat, lon = gps_coordinates
+                with st.spinner("データを送信しています...", show_time=True):
+                    now = datetime.now().strftime("%Y%m%d%H%M%S")
+                    image_names = {}
 
-            # --- 仮登録レコードを正式登録に上書き ---
-            client = st.session_state["cosmos_client"]
-            # 最新データ取得
-            data_all = get_all_data()
-            st.session_state.catch_results = data_all["catch_results"]
-            # 自分がreservedした最小IDのレコードを探す
-            user_name = (
-                st.session_state.user["user_name"] if st.session_state.user else None
-            )
-            reserved = [
-                d
-                for d in st.session_state.catch_results
-                if d.get("result_id") == result_id
-                and d.get("status") == "reserved"
-                and d.get("reserved_by") == user_name
-            ]
-            if not reserved:
-                st.error(
-                    "指定したIDの仮登録レコードが見つかりません。他ユーザーが既に登録した可能性があります。再取得してください。"
-                )
-                return
-            reserved_rec = reserved[0]
-            # 上書きデータ作成
-            data = {
-                **reserved_rec,
-                "status": "registered",
-                "users": users,
-                "catch_date": date.strftime("%Y-%m-%d"),
-                "catch_method": catch_method,
-                "trap": trap,
-                "latitude": lat,
-                "longitude": lon,
-                "sex": sex,
-                "adult": adult,
-                "size": size,
-                "disposal": disposal,
-                "comment": comment,
-            }
-            data.update(image_names)
+                    for idx, (key, _) in enumerate(image_fields, 1):
+                        if not is_required_image(key, adult, disposal):
+                            image_names[key] = None
+                            continue  # 不要な画像はスキップ
+                        file = images[key]
+                        if file is None:
+                            return
+                        file.seek(0)
+                        ext = file.name.split(".")[-1]
+                        name = f"{now}_{st.session_state.catch_method_option[catch_method]}_{key}.{ext}"
+                        upload_onedrive(f"Apps_Images/catch_result/{name}", file)
+                        image_names[key] = name
 
-            client.upsert_to_container(data)
-            # session_stateも更新
-            for i, d in enumerate(st.session_state.catch_results):
-                if d["id"] == reserved_rec["id"]:
-                    st.session_state.catch_results[i] = data
-                    break
-            submit_button = False  # フォーム送信後は再送信防止
-            st.success(f"{result_id}: 登録完了しました。")
+                    location_image = images["image2"]
+                    location_image.seek(0)
+                    gps_coordinates = get_gps_coordinates(location_image.read())
+                    if gps_coordinates:
+                        gps_data = True
+                    location_image.seek(0)
+                    lat, lon = gps_coordinates
 
-        # 使用済みIDは選択肢から除外
-        if "issued_result_ids" in st.session_state:
-            st.session_state["issued_result_ids"] = [
-                i for i in st.session_state["issued_result_ids"] if i != result_id
-            ]
+                    # --- 仮登録レコードを正式登録に上書き ---
+                    client = st.session_state["cosmos_client"]
+                    # 最新データ取得
+                    data_all = get_all_data()
+                    st.session_state.catch_results = data_all["catch_results"]
+                    # 自分がreservedした最小IDのレコードを探す
+                    user_name = (
+                        st.session_state.user["user_name"]
+                        if st.session_state.user
+                        else None
+                    )
+                    reserved = [
+                        d
+                        for d in st.session_state.catch_results
+                        if d.get("result_id") == result_id
+                        and d.get("status") == "reserved"
+                        and d.get("reserved_by") == user_name
+                    ]
+                    if not reserved:
+                        st.error(
+                            "指定したIDの仮登録レコードが見つかりません。他ユーザーが既に登録した可能性があります。再取得してください。"
+                        )
+                        return
+                    reserved_rec = reserved[0]
+                    # 上書きデータ作成
+                    data = {
+                        **reserved_rec,
+                        "status": "registered",
+                        "users": users,
+                        "catch_date": date.strftime("%Y-%m-%d"),
+                        "catch_method": catch_method,
+                        "trap": trap,
+                        "latitude": lat,
+                        "longitude": lon,
+                        "sex": sex,
+                        "adult": adult,
+                        "size": size,
+                        "disposal": disposal,
+                        "comment": comment,
+                    }
+                    data.update(image_names)
+
+                    client.upsert_to_container(data)
+                    # session_stateも更新
+                    for i, d in enumerate(st.session_state.catch_results):
+                        if d["id"] == reserved_rec["id"]:
+                            st.session_state.catch_results[i] = data
+                            break
+                    st.session_state.report_submitted = (
+                        False  # フォーム送信後は再送信防止
+                    )
+                    st.success(f"{result_id}: 登録完了しました。")
+
+                # 使用済みIDは選択肢から除外
+                if "issued_result_ids" in st.session_state:
+                    st.session_state["issued_result_ids"] = [
+                        i
+                        for i in st.session_state["issued_result_ids"]
+                        if i != result_id
+                    ]
 
 
 def edit_catch_result():

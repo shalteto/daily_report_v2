@@ -75,6 +75,8 @@ def init():
             )
         else:
             st.session_state.params_user = None
+    if "report_submitted" not in st.session_state:
+        st.session_state.report_submitted = False
 
 
 # デコレーター化

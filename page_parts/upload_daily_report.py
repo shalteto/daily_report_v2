@@ -65,35 +65,40 @@ def upsert_daily_report():
         submit_button = st.form_submit_button(label="送信")
 
     if submit_button:
-        with st.spinner("送信中...", show_time=True):
-            print("処理開始")
-            if uploaded_files and users and task_type:
-                task_date = date.strftime("%Y-%m-%d")
-                images = file_upload_daily(uploaded_files, task_type)
+        st.session_state.report_submitted = True
 
-                # 画像のアップロード
-                data = {
-                    "id": str(uuid.uuid4()),
-                    "category": "daily",
-                    "fy": st.session_state.fy,
-                    "users": users,
-                    "task_type": task_type,
-                    "task_date": task_date,
-                    "start_time": start_time.strftime("%H:%M"),
-                    "end_time": end_time.strftime("%H:%M"),
-                    "images": images,
-                    "comment": comment,
-                }
-                submit_data(data)
-                submit_button = False  # フォーム送信後は再送信防止
-                st.session_state["daily_reports"].append(data)
-            else:
-                if not users:
-                    st.error("従事者を選択してください。")
-                if not uploaded_files:
-                    st.error("写真をアップロードしてください。")
-                if not task_type:
-                    st.error("作業内容を選択してください。")
+        if st.session_state.report_submitted:
+            with st.spinner("送信中...", show_time=True):
+                print("処理開始")
+                if uploaded_files and users and task_type:
+                    task_date = date.strftime("%Y-%m-%d")
+                    images = file_upload_daily(uploaded_files, task_type)
+
+                    # 画像のアップロード
+                    data = {
+                        "id": str(uuid.uuid4()),
+                        "category": "daily",
+                        "fy": st.session_state.fy,
+                        "users": users,
+                        "task_type": task_type,
+                        "task_date": task_date,
+                        "start_time": start_time.strftime("%H:%M"),
+                        "end_time": end_time.strftime("%H:%M"),
+                        "images": images,
+                        "comment": comment,
+                    }
+                    submit_data(data)
+                    st.session_state.report_submitted = False
+                    st.session_state["daily_reports"].append(data)
+                else:
+                    if not users:
+                        st.error("従事者を選択してください。")
+                    if not uploaded_files:
+                        st.error("写真をアップロードしてください。")
+                    if not task_type:
+                        st.error("作業内容を選択してください。")
+        else:
+            st.warning("送信ボタンを押してください。")
 
 
 def edit_daily_report():

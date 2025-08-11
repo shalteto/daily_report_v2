@@ -44,10 +44,6 @@ def sample_trap_data():
     return trap_data
 
 
-# def call_trap_date():
-#     return st.session_state["traps"]
-
-
 map_style_options = {
     "衛星写真": "mapbox://styles/mapbox/satellite-v9",
     "アウトドア": "mapbox://styles/mapbox/outdoors-v11",

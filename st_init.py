@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from functools import wraps
 
-# from page_parts.input_users import load_users
 from page_parts.load_data import get_all_data
 from azure_.cosmosdb import CosmosDBClient
 
@@ -13,8 +12,6 @@ def init():
         st.session_state.selected_objects = ""
     if "trap_page" not in st.session_state:
         st.session_state.trap_page = "None"
-    # if "trap_data" not in st.session_state:
-    #     st.session_state.trap_data = ""
     if "location" not in st.session_state:
         st.session_state.location = ""
 
@@ -40,41 +37,7 @@ def init():
         st.session_state.daily_reports = data["daily_reports"]
         st.session_state.catch_results = data["catch_results"]
         st.session_state.orders = data["orders"]
-    if "task_type_option" not in st.session_state:
-        st.session_state.task_type_option = {
-            "わな猟見回り": "trap_research",
-            # "わな猟調査": "trap_setting", # コメント削除しない
-            "わな猟設置": "trap_remove",
-            "わな猟撤去": "trap_resetting",
-            # "わな猟移設": "trap_check", # コメント削除しない
-            # "銃猟調査": "gun_research", # コメント削除しない
-            # "銃猟誘引狙撃": "gun_calling", # コメント削除しない
-            # "銃猟巻き狩り": "gun_driven_hunting", # コメント削除しない
-            # "銃猟忍び猟": "gun_sneak_hunting", # コメント削除しない
-            "その他": "other",
-        }
-    if "catch_method_option" not in st.session_state:
-        st.session_state.catch_method_option = {
-            "くくり罠": "kukuri",
-            "箱罠": "box",
-            # "囲い罠": "enclosure", # コメント削除しない
-            # "巻き狩り": "driven", # コメント削除しない
-            # "忍び猟": "sneak", # コメント削除しない
-            # "誘引狙撃": "call", # コメント削除しない
-        }
-    if "params_user" not in st.session_state:
-        if "user_code" in st.query_params:
-            st.session_state.params_user = True
-            st.session_state.user = next(
-                (
-                    u
-                    for u in st.session_state.users
-                    if u["user_code"] == st.query_params["user_code"]
-                ),
-                None,
-            )
-        else:
-            st.session_state.params_user = None
+
     if "report_submitted" not in st.session_state:
         st.session_state.report_submitted = False
 

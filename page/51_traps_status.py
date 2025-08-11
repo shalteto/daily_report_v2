@@ -4,16 +4,11 @@ import altair as alt
 from datetime import datetime
 from st_init import with_init
 
-# st.set_page_config(page_title="わな稼働状況", layout="wide", page_icon="🐗")
 
 
 @with_init
 def main():
     st.subheader("わな稼働状況")
-
-    if st.session_state.user is None:
-        st.warning("最初の画面でログインをしてください。")
-        return
 
     traps = st.session_state.traps
     df = pd.DataFrame(traps)

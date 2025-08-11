@@ -98,44 +98,6 @@ def show_graph():
         st.altair_chart(chart, use_container_width=True)
 
 
-# def show_graph():
-#     st.subheader("捕獲統計")
-#     st.caption("捕獲数の推移をグラフで表示します。")
-#     # st.session_state["catch_results"]が存在しない場合のエラーハンドリング
-#     if "catch_results" not in st.session_state:
-#         st.warning("捕獲データがありません。")
-#         return
-#     df = pd.DataFrame(st.session_state["catch_results"])
-#     if df.empty:
-#         st.warning("捕獲データがありません。")
-#         return
-#     st.markdown(
-#         """
-#         - グラフは、捕獲数の推移を示しています。
-#         - グラフの上にカーソルを合わせると、日付と捕獲数が表示されます。
-#         """
-#     )
-#     df = df[df["status"] == "registered"]
-#     if df.empty:
-#         st.warning("捕獲データがありません。")
-#         return
-
-#     # 日付ごとに捕獲数を集計
-#     count_by_date = df.groupby("catch_date").size().reset_index(name="捕獲数")
-#     # 捕獲数合計
-#     total_catch = count_by_date["捕獲数"].sum()
-#     st.markdown(f"**総捕獲数:** {total_catch}")
-#     st.markdown("---")
-#     # 日付でソート
-#     count_by_date = count_by_date.sort_values("catch_date")
-
-#     # グラフ表示
-#     st.bar_chart(
-#         data=count_by_date.set_index("catch_date")["捕獲数"],
-#         use_container_width=True,
-#     )
-
-
 map_style_options = {
     "衛星写真": "mapbox://styles/mapbox/satellite-v9",
     "アウトドア": "mapbox://styles/mapbox/outdoors-v11",

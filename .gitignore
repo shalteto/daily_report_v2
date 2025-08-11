@@ -1,4 +1,7 @@
 /ゴミ箱
+/__pycache__/
+*/old/
+test*.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

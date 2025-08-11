@@ -71,6 +71,7 @@ def upsert_daily_report():
                 data = {
                     "id": str(uuid.uuid4()),
                     "updata_date": now_form2,
+                    "status": "Unprocessed",
                     "category": "daily_file",
                 }
                 data.update(image_list)

@@ -54,6 +54,7 @@ def upsert_catch_result():
                     data = {
                         "id": str(uuid.uuid4()),
                         "updata_date": now_form2,
+                        "status": "Unprocessed",
                         "category": "result_files",
                     }
                     data.update(image_list)
